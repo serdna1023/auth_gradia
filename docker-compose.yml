@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  # Servicio para nuestra API de Node.js/Express
+  api:
+    container_name: mi_backend_api
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      # Credenciales para la base de datos externa (Render)
+      - DB_HOST=${DB_HOST}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - DB_PORT=${DB_PORT}
+      
+      # Variables de entorno de la aplicación y JWT
+      - NODE_ENV=${NODE_ENV}
+      - PORT=${PORT_SERVER}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ACCESS_TTL=${JWT_ACCESS_TTL}
+      - JWT_REFRESH_TTL_MS=${JWT_REFRESH_TTL_MS}
+    volumes:
+      # Sincroniza tu código para desarrollo (hot-reload)
+      - ./src:/usr/src/app/src
+      - ./app.js:/usr/src/app/app.js
+      - ./server.js:/usr/src/app/server.js

@@ -1,0 +1,15 @@
+# Dependencias que se instalarán dentro del contenedor
+node_modules
+
+# Archivos de log que no deben estar en la imagen
+npm-debug.log
+*.log
+
+# Variables de entorno locales y secretos
+.env
+
+# Archivos de configuración de tu editor o sistema operativo
+.vscode
+.idea
+.git
+.DS_Store
