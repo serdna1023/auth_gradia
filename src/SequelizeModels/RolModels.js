@@ -4,7 +4,6 @@ module.exports = (sequelize) => {
   const Rol = sequelize.define('Rol', {
     id_rol: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     nombre_rol: { type: DataTypes.STRING(100), unique: true, allowNull: false },
-    descripcion_rol: { type: DataTypes.TEXT },
     estado: { type: DataTypes.STRING(20), defaultValue: 'activo' },
   }, {
     tableName: 'rol',
@@ -13,4 +12,4 @@ module.exports = (sequelize) => {
   });
 
   return Rol;
-};
+};                      

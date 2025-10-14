@@ -1,6 +1,3 @@
-// controllers/authController.js
-
-// Normaliza status y mensaje desde distintos tipos de error (use-case, Sequelize, etc.)
 function mapError(err) {
   // Respeta el status si viene del use-case (e.status)
   let status = err.status || err.statusCode || 500;
@@ -23,7 +20,7 @@ function mapError(err) {
   return { status, message };
 }
 
-const makeAuthController = ({ registerPublicUC, adminCreateUC, loginUC, refreshUC, logoutUC }) => ({
+const makeAuthController = ({ registerPublicUC, adminCreateUC, loginUC, refreshUC, logoutUC, changePasswordUC, forgotPasswordUC }) => ({
 
   // POST /api/auth/register
   registerPublic: async (req, res) => {
@@ -91,6 +88,34 @@ const makeAuthController = ({ registerPublicUC, adminCreateUC, loginUC, refreshU
         message: 'Sesión cerrada correctamente',
         data,
       });
+    } catch (err) {
+      const { status, message } = mapError(err);
+      return res.status(status).json({ message });
+    }
+  },
+
+    // PUT /api/auth/password
+    changePassword: async (req, res) => {
+    try {
+      const userId = req.user.sub;
+      const { oldPassword, newPassword } = req.body;
+      
+      const data = await changePasswordUC({ userId, oldPassword, newPassword });
+      
+      return res.status(200).json(data);
+    } catch (err) {
+      const { status, message } = mapError(err);
+      return res.status(status).json({ message });
+    }
+  },
+
+    // POST /api/auth/forgot-password
+    forgotPassword: async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      const data = await forgotPasswordUC({ email });
+      return res.status(200).json(data);
     } catch (err) {
       const { status, message } = mapError(err);
       return res.status(status).json({ message });

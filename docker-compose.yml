@@ -7,6 +7,7 @@ services:
     build: .
     ports:
       - "8080:8080"
+    #command: npm run dev 
     environment:
       # Credenciales para la base de datos externa (Render)
       - DB_HOST=${DB_HOST}
@@ -23,6 +24,5 @@ services:
       - JWT_REFRESH_TTL_MS=${JWT_REFRESH_TTL_MS}
     volumes:
       # Sincroniza tu código para desarrollo (hot-reload)
-      - ./src:/usr/src/app/src
-      - ./app.js:/usr/src/app/app.js
-      - ./server.js:/usr/src/app/server.js
+      - ./:/usr/src/app
+      - /usr/src/app/node_modules

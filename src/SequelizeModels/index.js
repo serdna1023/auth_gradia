@@ -9,6 +9,7 @@ const UsuarioRol = require('./UsuarioRolModels')(sequelize);
 const RolPermiso = require('./RolPermisoModels')(sequelize);
 const RefreshToken = require('./RefreshTokenModels')(sequelize);
 const LogAuditoria = require('./LogAuditoriaModels')(sequelize);
+const PasswordResetToken = require('./PasswordResetTokenModel')(sequelize);
 
 // Relaciones
 Usuario.belongsTo(Persona, { foreignKey: 'id_persona' });
@@ -26,6 +27,9 @@ RefreshToken.belongsTo(Usuario, { foreignKey: 'id_usuario' });
 Usuario.hasMany(LogAuditoria, { foreignKey: 'id_usuario' });
 LogAuditoria.belongsTo(Usuario, { foreignKey: 'id_usuario' });
 
+Usuario.hasMany(PasswordResetToken, { foreignKey: 'id_usuario' });
+PasswordResetToken.belongsTo(Usuario, { foreignKey: 'id_usuario' });
+
 module.exports = {
   sequelize,
   Persona,
@@ -36,4 +40,5 @@ module.exports = {
   RolPermiso,
   RefreshToken,
   LogAuditoria,
+  PasswordResetToken,
 };

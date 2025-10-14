@@ -14,7 +14,9 @@ function buildAuthRouter({ repos }) {
   const { adminCreateUser }    = require('../use-cases/adminCreateUser');
   const { loginUser }          = require('../use-cases/loginUser');
   const { refreshSession }     = require('../use-cases/refreshSession');
+  const { changePassword }     = require('../use-cases/changePassword');
   const { logout }             = require('../use-cases/logout');
+  const { forgotPassword } = require('../use-cases/forgotPassword'); 
   const { makeAuthController } = require('../controllers/authController');
 
   // Seguridad
@@ -28,6 +30,10 @@ function buildAuthRouter({ repos }) {
   const loginUC          = loginUser({ authRepo: repos.AuthRepository });
   const refreshUC        = refreshSession({ authRepo: repos.AuthRepository });
   const logoutUC         = logout({ authRepo: repos.AuthRepository });
+  const changePasswordUC = changePassword({ authRepo: repos.AuthRepository });
+  const forgotPasswordUC = forgotPassword({ authRepo: repos.AuthRepository }); 
+
+
 
   // Controller
   const ctrl = makeAuthController({
@@ -36,6 +42,8 @@ function buildAuthRouter({ repos }) {
     loginUC,
     refreshUC,
     logoutUC,
+    changePasswordUC,
+    forgotPasswordUC,
   });
 
   // Router de Express
@@ -45,10 +53,12 @@ function buildAuthRouter({ repos }) {
   router.post('/register', asyncH(ctrl.registerPublic));
   router.post('/login',    asyncH(ctrl.login));
   router.post('/refresh',  asyncH(ctrl.refresh));
+  router.post('/logout', asyncH(ctrl.logout)); 
+  router.post('/forgot-password', asyncH(ctrl.forgotPassword)); 
 
   /* ------- Rutas protegidas ------- */
-  router.post('/logout',        authenticate,                         asyncH(ctrl.logout));
   router.post('/admin/users',   authenticate, authorize(ADMIN),        asyncH(ctrl.adminCreate));
+  router.put('/password', authenticate, asyncH(ctrl.changePassword)); 
 
   /* ------- Health local opcional ------- */
   router.get('/_ready', (_req, res) => res.json({ ok: true }));
@@ -57,3 +67,4 @@ function buildAuthRouter({ repos }) {
 }
 
 module.exports = { buildAuthRouter };
+
