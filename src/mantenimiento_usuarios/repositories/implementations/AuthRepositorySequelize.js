@@ -8,14 +8,32 @@ const {
   PasswordResetToken,
 } = require("../../../SequelizeModels");
 const { Op } = require("sequelize");
-const { ALLOWED_PUBLIC_ROLE, ALLOWED_ADMIN_ROLES } = require("../../../constants/roles");
+const {
+  ALLOWED_PUBLIC_ROLE,
+  ALLOWED_ADMIN_ROLES,
+} = require("../../../constants/roles");
 
 class AuthRepositorySequelize extends AuthRepository {
-  async createPersonaUsuario({ persona, usuario, roleIds = [] }) {
+  async createPersonaUsuario({
+    persona,
+    usuario,
+    roleIds = [],
+    auditInfo = {},
+  }) {
     return sequelize.transaction(async (t) => {
-      const p = await Persona.create(persona, { transaction: t });
+      // 1. Inyectamos el `created_by` al momento de crear la Persona
+      const p = await Persona.create(
+        { ...persona, created_by: auditInfo.createdBy },
+        { transaction: t }
+      );
+
+      // 2. Y también al momento de crear el Usuario
       const u = await Usuario.create(
-        { ...usuario, id_persona: p.id_persona },
+        {
+          ...usuario,
+          id_persona: p.id_persona,
+          created_by: auditInfo.createdBy,
+        },
         { transaction: t }
       );
 
@@ -30,7 +48,7 @@ class AuthRepositorySequelize extends AuthRepository {
 
         if (rolesEncontrados.length !== roleIds.length) {
           throw new Error("Uno o más de los roles especificados no existen.");
-        } 
+        }
 
         // --- ¡AQUÍ ESTÁ LA NUEVA VALIDACIÓN DE NEGOCIO! ---
         // Asumimos que el admin solo puede crear un rol a la vez por ahora.
@@ -44,9 +62,7 @@ class AuthRepositorySequelize extends AuthRepository {
         }
 
         rolesParaAsignar = rolesEncontrados;
-      
       } else {
-
         // --- LÓGICA NUEVA PARA EL REGISTRO PÚBLICO ---
         // Si no vienen roleIds, es un usuario público. Buscamos el rol por defecto en la BD.
         console.log(`Buscando rol por defecto: ${ALLOWED_PUBLIC_ROLE}`); // Un log para depurar
@@ -105,18 +121,18 @@ class AuthRepositorySequelize extends AuthRepository {
     }
   }
 
-    findUsuarioById(id) {
+  findUsuarioById(id) {
     return Usuario.findByPk(id);
   }
 
-    async updateUserPassword(userId, newPasswordHash) {
+  async updateUserPassword(userId, newPasswordHash, updatedById) {
     await Usuario.update(
-      { password_hash: newPasswordHash },
+      { password_hash: newPasswordHash, updated_by: updatedById },
       { where: { id_usuario: userId } }
     );
   }
 
-    async savePasswordResetToken(userId, tokenHash, expiresAt) {
+  async savePasswordResetToken(userId, tokenHash, expiresAt) {
     await PasswordResetToken.create({
       id_usuario: userId,
       token_hash: tokenHash,
@@ -124,5 +140,22 @@ class AuthRepositorySequelize extends AuthRepository {
     });
   }
 
+  findValidPasswordResetToken(tokenHash) {
+    return PasswordResetToken.findOne({
+      where: {
+        token_hash: tokenHash,
+        expires_at: { [Op.gt]: new Date() }, // Op.gt significa "greater than" (mayor que)
+      },
+      include: Usuario,
+    });
+  }
+
+  deletePasswordResetToken(tokenHash) {
+    return PasswordResetToken.destroy({
+      where: {
+        token_hash: tokenHash,
+      },
+    });
+  }
 }
 module.exports = { AuthRepositorySequelize };

@@ -1,7 +1,6 @@
 const crypto = require('crypto');
-//const { sendPasswordResetEmail } = require('../../services/emailService');
+const { sendPasswordResetEmail } = require('../../services/emailService');
 /**
- * Caso de uso para iniciar el proceso de restablecimiento de contraseña.
  * @param {object} dependencies 
  * @param {object} dependencies.authRepo 
  */
@@ -30,7 +29,7 @@ const forgotPassword = ({ authRepo }) => async ({ email }) => {
   await authRepo.savePasswordResetToken(user.id_usuario, tokenHash, expiresAt);
 
   // 7. Enviamos el correo con el token ORIGINAL.
-  //await sendPasswordResetEmail(user.correo_institucional, tokenOriginal);
+  await sendPasswordResetEmail(user.correo_institucional, tokenOriginal);
 
   return { message: 'Si tu correo está registrado, recibirás un enlace de recuperación.' };
 };

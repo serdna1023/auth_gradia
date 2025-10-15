@@ -7,6 +7,8 @@ class AuthRepository {
   async findUsuarioById(id) { throw new Error('NOT_IMPLEMENTED'); }
   async updateUserPassword(userId, newPasswordHash) { throw new Error('NOT_IMPLEMENTED'); }
   async savePasswordResetToken(userId, tokenHash, expiresAt) { throw new Error('NOT_IMPLEMENTED'); }
+  async findValidPasswordResetToken(tokenHash) { throw new Error('NOT_IMPLEMENTED'); }
+  async deletePasswordResetToken(tokenHash) { throw new Error('NOT_IMPLEMENTED'); }
 
 }
 module.exports = { AuthRepository };

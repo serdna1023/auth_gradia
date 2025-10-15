@@ -18,6 +18,8 @@ function buildAuthRouter({ repos }) {
   const { logout }             = require('../use-cases/logout');
   const { forgotPassword } = require('../use-cases/forgotPassword'); 
   const { makeAuthController } = require('../controllers/authController');
+  const { deleteUser } = require('../use-cases/deleteUser'); 
+  const { resetPassword } = require('../use-cases/resetPassword');
 
   // Seguridad
   const authenticate = require('../security/authenticate');
@@ -32,6 +34,8 @@ function buildAuthRouter({ repos }) {
   const logoutUC         = logout({ authRepo: repos.AuthRepository });
   const changePasswordUC = changePassword({ authRepo: repos.AuthRepository });
   const forgotPasswordUC = forgotPassword({ authRepo: repos.AuthRepository }); 
+  const deleteUserUC = deleteUser({ authRepo: repos.AuthRepository });
+  const resetPasswordUC = resetPassword({ authRepo: repos.AuthRepository });
 
 
 
@@ -44,6 +48,8 @@ function buildAuthRouter({ repos }) {
     logoutUC,
     changePasswordUC,
     forgotPasswordUC,
+    deleteUserUC,
+    resetPasswordUC,
   });
 
   // Router de Express
@@ -54,11 +60,13 @@ function buildAuthRouter({ repos }) {
   router.post('/login',    asyncH(ctrl.login));
   router.post('/refresh',  asyncH(ctrl.refresh));
   router.post('/logout', asyncH(ctrl.logout)); 
-  router.post('/forgot-password', asyncH(ctrl.forgotPassword)); 
+  router.post('/forgot-password', asyncH(ctrl.forgotPassword));
+  router.post('/reset-password', asyncH(ctrl.resetPassword));
 
   /* ------- Rutas protegidas ------- */
   router.post('/admin/users',   authenticate, authorize(ADMIN),        asyncH(ctrl.adminCreate));
   router.put('/password', authenticate, asyncH(ctrl.changePassword)); 
+  router.delete('/admin/users/:id', authenticate, authorize(ADMIN), asyncH(ctrl.deleteUser)); 
 
   /* ------- Health local opcional ------- */
   router.get('/_ready', (_req, res) => res.json({ ok: true }));

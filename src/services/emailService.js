@@ -1,24 +1,18 @@
 const sgMail = require('@sendgrid/mail');
-
-// Aquí es donde el código busca la "llave" para hablar con SendGrid.
-// La buscará en tu archivo .env
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 /**
- * Envía un correo electrónico para el restablecimiento de contraseña usando SendGrid.
- * @param {string} toEmail - La dirección de correo del destinatario.
- * @param {string} token - El token de un solo uso para el enlace.
+ * @param {string} toEmail 
+ * @param {string} token
  */
 const sendPasswordResetEmail = async (toEmail, token) => {
-  // Este es el enlace que el usuario recibirá.
-  // Asumimos que tu frontend (la parte visual) correrá en localhost:3000
-  // y tendrá una página específica para manejar el reseteo.
-  const resetLink = `http://localhost:8080/reset-password?token=${token}`;
 
-  // Este es el formato de mensaje que SendGrid necesita.
+const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3000';
+const resetLink = `${frontendURL}/reset-password?token=${token}`;
+
   const msg = {
-    to: toEmail, // El correo del usuario que olvidó su contraseña
-    from: process.env.SENDGRID_FROM_EMAIL, // El correo que verificaste en tu cuenta de SendGrid
+    to: toEmail, 
+    from: process.env.SENDGRID_FROM_EMAIL,
     subject: 'Restablecimiento de tu contraseña',
     html: `
       <h1>¿Olvidaste tu contraseña?</h1>
@@ -29,18 +23,38 @@ const sendPasswordResetEmail = async (toEmail, token) => {
   };
 
   try {
-    // Le decimos a SendGrid que envíe el mensaje
+
     await sgMail.send(msg);
     console.log(`Correo de reseteo enviado a ${toEmail} a través de SendGrid.`);
   } catch (error) {
     console.error('Error al enviar el correo con SendGrid:', error);
-    // Si SendGrid nos da más detalles del error, los mostramos en la consola
+
     if (error.response) {
       console.error(error.response.body);
     }
-    // Lanzamos un error genérico para que el caso de uso sepa que algo falló
     throw new Error('No se pudo enviar el correo de restablecimiento.');
   }
 };
 
-module.exports = { sendPasswordResetEmail };
+const sendPasswordChangeConfirmationEmail = async (toEmail) => {
+  const msg = {
+    to: toEmail,
+    from: process.env.SENDGRID_FROM_EMAIL,
+    subject: 'Confirmación de cambio de contraseña',
+    html: `
+      <h1>Tu contraseña ha sido actualizada</h1>
+      <p>Te confirmamos que la contraseña de tu cuenta ha sido cambiada exitosamente.</p>
+      <p>Si no has sido tú quien realizó este cambio, por favor, contacta con nuestro equipo de soporte inmediatamente.</p>
+    `,
+  };
+
+  try {
+    await sgMail.send(msg);
+    console.log(`Correo de confirmación de cambio de contraseña enviado a ${toEmail}.`);
+  } catch (error) {
+    console.error('Error al enviar el correo de confirmación:', error);
+    // No lanzamos un error aquí para no interrumpir el flujo principal si el correo falla
+  }
+};
+
+module.exports = { sendPasswordResetEmail, sendPasswordChangeConfirmationEmail };

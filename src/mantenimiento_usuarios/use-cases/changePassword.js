@@ -1,6 +1,6 @@
 const { compare, hash } = require('../security/password');
 
-const changePassword = ({ authRepo }) => async ({ userId, oldPassword, newPassword }) => {
+const changePassword = ({ authRepo }) => async ({ userId, oldPassword, newPassword, updatedById}) => {
   // 1. Validaciones básicas
   if (!oldPassword || !newPassword) {
     const err = new Error('Se requieren la contraseña antigua y la nueva.');
@@ -31,7 +31,7 @@ const changePassword = ({ authRepo }) => async ({ userId, oldPassword, newPasswo
   }
 
   const newPasswordHash = await hash(newPassword);
-  await authRepo.updateUserPassword(userId, newPasswordHash);
+  await authRepo.updateUserPassword(userId, newPasswordHash), updatedById;
 
   return { message: 'Contraseña actualizada correctamente.' };
 };
