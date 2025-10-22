@@ -9,6 +9,9 @@ class AuthRepository {
   async savePasswordResetToken(userId, tokenHash, expiresAt) { throw new Error('NOT_IMPLEMENTED'); }
   async findValidPasswordResetToken(tokenHash) { throw new Error('NOT_IMPLEMENTED'); }
   async deletePasswordResetToken(tokenHash) { throw new Error('NOT_IMPLEMENTED'); }
+  async findUsuarioByGoogleId(googleId) { throw new Error('NOT_IMPLEMENTED'); }
+  async findRolIdByName(rolName) { throw new Error('NOT_IMPLEMENTED'); }
+  async linkGoogleId(userId, googleId) { throw new Error('NOT_IMPLEMENTED'); }
 
 }
 module.exports = { AuthRepository };

@@ -1,47 +1,42 @@
-// app.js
-require('dotenv').config();
-
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
-
-// ⚠️ Asegúrate que este repo exista y exporte la clase correctamente
-const { AuthRepositorySequelize } = require('./src/mantenimiento_usuarios/repositories/implementations/AuthRepositorySequelize');
+// const cookieParser = require('cookie-parser'); // Descomenta cuando lo uses
 const { buildAuthRouter } = require('./src/mantenimiento_usuarios/routes/auth.routes');
 
-const app = express();
+function createApp({ repos }) {
+  const app = express();
 
-/* ======= Middlewares globales (orden recomendado) ======= */
-app.use(cors());
-app.use(express.json());                          // parse JSON
-app.use(express.urlencoded({ extended: true }));  // parse x-www-form-urlencoded (opcional)
-app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+  /* ======= Middlewares globales ======= */
+  app.use(cors(/* Opciones de CORS aquí si las necesitas */));
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
+  // app.use(cookieParser()); // Descomenta cuando lo uses
+  app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
-/* ======= Inyección de dependencias ======= */
-const repos = { AuthRepository: new AuthRepositorySequelize() };
+  /* ======= Rutas ======= */
+  app.get('/', (_req, res) => res.json({ message: 'API funcionando 🚀' }));
+  app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
-/* ======= Rutas ======= */
-app.get('/', (_req, res) => res.json({ message: 'API funcionando 🚀' }));
-app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+  // La fábrica usa los 'repos' que le pasaron para construir el router
+  app.use('/api/auth', buildAuthRouter({ repos }));
 
-app.use('/api/auth', buildAuthRouter({ repos }));  // <- usa express.Router() adentro
+  /* ======= 404 Handler ======= */
+  app.use((req, res, _next) => {
+    res.status(404).json({ message: `No encontrado: ${req.method} ${req.originalUrl}` });
+  });
 
-/* ======= 404 ======= */
-app.use((req, res, _next) => {
-  res.status(404).json({ message: `No encontrado: ${req.method} ${req.originalUrl}` });
-});
+  /* ======= Manejo centralizado de errores ======= */
+  app.use((err, _req, res, _next) => {
+    if (err.type === 'entity.parse.failed') {
+      return res.status(400).json({ message: 'JSON inválido' });
+    }
+    const status = err.status || 500;
+    const msg = err.message || 'Error interno del servidor';
+    res.status(status).json({ message: msg });
+  });
 
-/* ======= Manejo centralizado de errores ======= */
-app.use((err, _req, res, _next) => {
-  // Errores de body parser
-  if (err.type === 'entity.parse.failed') {
-    return res.status(400).json({ message: 'JSON inválido' });
-  }
+  return app;
+}
 
-  // Puedes especializar por Sequelize, JWT, etc.
-  const status = err.status || err.statusCode || 500;
-  const msg = err.message || 'Error interno del servidor';
-  res.status(status).json({ message: msg });
-});
-
-module.exports = app;
+module.exports = { createApp };

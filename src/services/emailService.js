@@ -53,7 +53,6 @@ const sendPasswordChangeConfirmationEmail = async (toEmail) => {
     console.log(`Correo de confirmación de cambio de contraseña enviado a ${toEmail}.`);
   } catch (error) {
     console.error('Error al enviar el correo de confirmación:', error);
-    // No lanzamos un error aquí para no interrumpir el flujo principal si el correo falla
   }
 };
 

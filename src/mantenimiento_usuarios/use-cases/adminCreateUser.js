@@ -2,6 +2,13 @@ const { hash } = require('../security/password');
 
 const adminCreateUser = ({ authRepo }) => async ({ userData, createdById }) => {
   const { nombre, apellido, fecha_nacimiento, correo, password, id_rol } = userData;
+
+  if (!password || password.length < 8) {
+    const err = new Error('La contraseña debe tener al menos 8 caracteres.');
+    err.status = 400; // Bad Request
+    throw err;
+  }
+
   if (!id_rol || isNaN(parseInt(id_rol, 10))) {
     const e = new Error('El campo id_rol es requerido y debe ser un número.');
     e.status = 400;

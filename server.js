@@ -1,27 +1,29 @@
-// server.js
-const app = require('./app');
+require('dotenv').config();
 
-// Si tu módulo de DB exporta instancia de sequelize:
-let sequelize;
-try {
-  // Ajusta según tu archivo real:
-  ({ sequelize } = require('./src/config/database'));
-} catch (_) {
-  // Si tu archivo de DB solo “arranca” la conexión al requerirlo,
-  // puedes ignorar este bloque y dejar que haga side-effects.
-}
+// --- Importaciones ---
+const { createApp } = require('./app');
+const sequelize = require('./src/config/database');
+const { AuthRepositorySequelize } = require('./src/mantenimiento_usuarios/repositories/implementations/AuthRepositorySequelize');
 
+// --- Inyección de Dependencias (El "Composition Root") ---
+// 1. Creamos las instancias concretas de nuestros repositorios
+const repos = {
+  AuthRepository: new AuthRepositorySequelize()
+};
+
+// 2. Creamos la aplicación Express pasándole las dependencias
+const app = createApp({ repos });
+
+// --- Arranque del Servidor ---
 const PORT = process.env.PORT || 8080;
 
 async function start() {
   try {
-    // Si tienes sequelize, valida conexión aquí
-    if (sequelize?.authenticate) {
-      await sequelize.authenticate();
-      // await sequelize.sync(); // si quieres sincronizar modelos
-      console.log('✓ Conexión establecida con la base de datos');
-    }
+    // Validamos la conexión a la base de datos
+    await sequelize.authenticate();
+    console.log('✓ Conexión establecida con la base de datos');
 
+    // Iniciamos el servidor
     app.listen(PORT, () => {
       console.log(`# Server escuchando en http://localhost:${PORT}`);
     });

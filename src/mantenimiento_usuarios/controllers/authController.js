@@ -30,7 +30,10 @@ const makeAuthController = ({
   forgotPasswordUC,
   deleteUserUC,
   resetPasswordUC,
+  googleLoginUC,
+  getGoogleAuthUrl,
 }) => ({
+
   // POST /api/auth/register
   registerPublic: async (req, res) => {
     try {
@@ -170,6 +173,46 @@ const makeAuthController = ({
     } catch (err) {
       const { status, message } = mapError(err);
       return res.status(status).json({ message });
+    }
+  },
+
+  // GET /api/auth/google
+  redirectToGoogle: (req, res) => {
+    try {
+      const url = getGoogleAuthUrl(); // Obtiene la URL de Google desde el caso de uso
+      res.redirect(url); // Envía una respuesta de redirección al navegador
+    } catch (error) {
+        console.error("Error al generar URL de Google:", error);
+        // Idealmente, redirigir a una página de error en el frontend
+        res.status(500).json({ message: 'Error al iniciar sesión con Google.' });
+    }
+  },
+
+  // GET /api/auth/google/callback
+  handleGoogleCallback: async (req, res) => {
+    try {
+      
+      const code = req.query.code;
+      if (!code) {
+        throw new Error('No se recibió el código de Google.');
+      }
+
+      // Pasamos el código y el contexto (IP, User-Agent) al caso de uso principal
+      const ctx = { ip: req.ip, ua: req.headers['user-agent'] };
+      const result = await googleLoginUC({ code, ctx }); // Llama a la lógica principal
+
+      // Redirigimos al usuario al frontend, pasándole los tokens de NUESTRA app.
+      // Estrategia simple: usar parámetros de URL. Considera cookies HttpOnly para producción.
+      const frontendRedirectUrl = `${process.env.FRONTEND_URL}/auth/callback?accessToken=${result.accessToken}&refreshToken=${result.refreshToken}&isNewUser=${result.isNewUser}`;
+      res.redirect(frontendRedirectUrl);
+
+    } catch (err) {
+      // Si algo falla, redirigimos al usuario a la página de login del frontend con un mensaje de error.
+      const { status, message } = mapError(err);
+      console.error("Error en handleGoogleCallback:", message); 
+      // Mensaje genérico para el usuario en la URL
+      const frontendErrorUrl = `${process.env.FRONTEND_URL}/login?error=${encodeURIComponent('Fallo en la autenticación con Google.')}`;
+      res.redirect(frontendErrorUrl);
     }
   },
 

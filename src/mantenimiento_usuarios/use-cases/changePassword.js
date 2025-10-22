@@ -1,7 +1,7 @@
 const { compare, hash } = require('../security/password');
 
 const changePassword = ({ authRepo }) => async ({ userId, oldPassword, newPassword, updatedById}) => {
-  // 1. Validaciones básicas
+
   if (!oldPassword || !newPassword) {
     const err = new Error('Se requieren la contraseña antigua y la nueva.');
     err.status = 400;

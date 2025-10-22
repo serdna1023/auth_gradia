@@ -1,33 +1,17 @@
 const { AuthRepository } = require("../interfaces/AuthRepository");
-const {
-  sequelize,
-  Persona,
-  Usuario,
-  Rol,
-  RefreshToken,
-  PasswordResetToken,
-} = require("../../../SequelizeModels");
+const {sequelize, Persona, Usuario, Rol, RefreshToken, PasswordResetToken, } = require("../../../SequelizeModels");
 const { Op } = require("sequelize");
-const {
-  ALLOWED_PUBLIC_ROLE,
-  ALLOWED_ADMIN_ROLES,
-} = require("../../../constants/roles");
+const { ALLOWED_PUBLIC_ROLE, ALLOWED_ADMIN_ROLES, } = require("../../../constants/roles");
 
 class AuthRepositorySequelize extends AuthRepository {
-  async createPersonaUsuario({
-    persona,
-    usuario,
-    roleIds = [],
-    auditInfo = {},
-  }) {
+  async createPersonaUsuario({ persona, usuario, roleIds = [], auditInfo = {},}) {
+
     return sequelize.transaction(async (t) => {
-      // 1. Inyectamos el `created_by` al momento de crear la Persona
       const p = await Persona.create(
         { ...persona, created_by: auditInfo.createdBy },
         { transaction: t }
       );
 
-      // 2. Y también al momento de crear el Usuario
       const u = await Usuario.create(
         {
           ...usuario,
@@ -57,7 +41,7 @@ class AuthRepositorySequelize extends AuthRepository {
           const err = new Error(
             `El rol '${nombreRol}' no puede ser asignado por un administrador.`
           );
-          err.status = 403; // 403 Forbidden es el código perfecto para esto.
+          err.status = 403;
           throw err;
         }
 
@@ -157,5 +141,28 @@ class AuthRepositorySequelize extends AuthRepository {
       },
     });
   }
+
+  async findUsuarioByGoogleId(googleId) {
+    return Usuario.findOne({ where: { id_google: googleId } });
+  }
+
+  async findRolIdByName(rolName) {
+    const rol = await Rol.findOne({ where: { nombre_rol: rolName } });
+    if (!rol) {
+      // Es importante manejar el caso donde el rol no exista
+      console.error(`Error de configuración: Rol '${rolName}' no encontrado en la base de datos.`);
+      throw new Error(`Error de configuración: Rol '${rolName}' no encontrado.`);
+    }
+    return rol.id_rol;
+  }
+
+  async linkGoogleId(userId, googleId) {
+    // Usamos 'update' para modificar el registro existente
+    await Usuario.update(
+      { id_google: googleId }, // El campo a actualizar
+      { where: { id_usuario: userId } } // El usuario a modificar
+    );
+  }
+
 }
 module.exports = { AuthRepositorySequelize };

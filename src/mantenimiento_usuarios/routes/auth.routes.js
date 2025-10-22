@@ -20,6 +20,7 @@ function buildAuthRouter({ repos }) {
   const { makeAuthController } = require('../controllers/authController');
   const { deleteUser } = require('../use-cases/deleteUser'); 
   const { resetPassword } = require('../use-cases/resetPassword');
+  const { googleLogin, getGoogleAuthUrl } = require('../use-cases/googleLogin');
 
   // Seguridad
   const authenticate = require('../security/authenticate');
@@ -36,8 +37,7 @@ function buildAuthRouter({ repos }) {
   const forgotPasswordUC = forgotPassword({ authRepo: repos.AuthRepository }); 
   const deleteUserUC = deleteUser({ authRepo: repos.AuthRepository });
   const resetPasswordUC = resetPassword({ authRepo: repos.AuthRepository });
-
-
+  const googleLoginUC = googleLogin({ authRepo: repos.AuthRepository });
 
   // Controller
   const ctrl = makeAuthController({
@@ -50,6 +50,8 @@ function buildAuthRouter({ repos }) {
     forgotPasswordUC,
     deleteUserUC,
     resetPasswordUC,
+    googleLoginUC,
+    getGoogleAuthUrl,
   });
 
   // Router de Express
@@ -62,6 +64,8 @@ function buildAuthRouter({ repos }) {
   router.post('/logout', asyncH(ctrl.logout)); 
   router.post('/forgot-password', asyncH(ctrl.forgotPassword));
   router.post('/reset-password', asyncH(ctrl.resetPassword));
+  router.get('/google', ctrl.redirectToGoogle); // Inicia el flujo OAuth
+  router.get('/google/callback', asyncH(ctrl.handleGoogleCallback)); // Recibe la respuesta de Google
 
   /* ------- Rutas protegidas ------- */
   router.post('/admin/users',   authenticate, authorize(ADMIN),        asyncH(ctrl.adminCreate));
