@@ -21,6 +21,7 @@ function buildAuthRouter({ repos }) {
   const { deleteUser } = require('../use-cases/deleteUser'); 
   const { resetPassword } = require('../use-cases/resetPassword');
   const { googleLogin, getGoogleAuthUrl } = require('../use-cases/googleLogin');
+  const { getMyProfile } = require('../use-cases/getMyProfile');
 
   // Seguridad
   const authenticate = require('../security/authenticate');
@@ -38,6 +39,7 @@ function buildAuthRouter({ repos }) {
   const deleteUserUC = deleteUser({ authRepo: repos.AuthRepository });
   const resetPasswordUC = resetPassword({ authRepo: repos.AuthRepository });
   const googleLoginUC = googleLogin({ authRepo: repos.AuthRepository });
+  const getMyProfileUC = getMyProfile({ authRepo: repos.AuthRepository });
 
   // Controller
   const ctrl = makeAuthController({
@@ -52,6 +54,7 @@ function buildAuthRouter({ repos }) {
     resetPasswordUC,
     googleLoginUC,
     getGoogleAuthUrl,
+    getMyProfileUC,
   });
 
   // Router de Express
@@ -70,7 +73,8 @@ function buildAuthRouter({ repos }) {
   /* ------- Rutas protegidas ------- */
   router.post('/admin/users',   authenticate, authorize(ADMIN),        asyncH(ctrl.adminCreate));
   router.put('/password', authenticate, asyncH(ctrl.changePassword)); 
-  router.delete('/admin/users/:id', authenticate, authorize(ADMIN), asyncH(ctrl.deleteUser)); 
+  router.delete('/admin/users/:id', authenticate, authorize(ADMIN), asyncH(ctrl.deleteUser));
+  router.get('/me', authenticate, asyncH(ctrl.getMyProfile)); 
 
   /* ------- Health local opcional ------- */
   router.get('/_ready', (_req, res) => res.json({ ok: true }));

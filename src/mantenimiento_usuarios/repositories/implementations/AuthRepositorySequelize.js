@@ -105,8 +105,10 @@ class AuthRepositorySequelize extends AuthRepository {
     }
   }
 
-  findUsuarioById(id) {
-    return Usuario.findByPk(id);
+  findUsuarioById(id, options = {}) {
+    // Le pasamos el objeto de opciones (que contendrá el 'include')
+    // directamente a la función findByPk de Sequelize.
+    return Usuario.findByPk(id, options);
   }
 
   async updateUserPassword(userId, newPasswordHash, updatedById) {

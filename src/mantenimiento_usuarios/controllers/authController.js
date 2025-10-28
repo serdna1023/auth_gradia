@@ -231,6 +231,18 @@ const makeAuthController = ({
       res.redirect(frontendErrorUrl);
     }
   },
+  
+  // GET /api/auth/me
+  getMyProfile: async (req, res) => {
+    try {
+      const userId = req.user.sub;
+      const userProfile = await getMyProfileUC({ userId });
+      return res.status(200).json({ data: userProfile });
+    } catch (err) {
+      const { status, message } = mapError(err);
+      return res.status(status).json({ message });
+    }
+  },
 
 });
 
