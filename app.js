@@ -17,7 +17,7 @@ function createApp({ repos }) {
     credentials: true,
   };
 
-  app.options('*', cors(corsOptions));
+  app.use(cors(corsOptions));
 
   /* ======= Middlewares globales ======= */
   // 👇 Usamos las opciones de CORS que definimos
