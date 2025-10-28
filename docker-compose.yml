@@ -1,4 +1,4 @@
-version: '3.8'
+# version: '3.8' # Puedes quitar esta línea, ya no es necesaria
 
 services:
   # Servicio para nuestra API de Node.js/Express
@@ -7,7 +7,9 @@ services:
     build: .
     ports:
       - "8080:8080"
-    #command: npm run dev 
+    # ¡MUY IMPORTANTE! Asegúrate de que esta línea esté DESCOMENTADA
+    # Le dice a Docker que use nodemon para arrancar, lo que permite el hot-reload
+    command: npm run dev
     environment:
       # Credenciales para la base de datos externa (Render)
       - DB_HOST=${DB_HOST}
@@ -15,14 +17,15 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
       - DB_PORT=${DB_PORT}
-      
+
       # Variables de entorno de la aplicación y JWT
-      - NODE_ENV=${NODE_ENV}
-      - PORT=${PORT_SERVER}
+      - NODE_ENV=${NODE_ENV} # Debería ser 'development' para local
+      - PORT=${PORT_SERVER} # Asegúrate que coincida con el EXPOSE del Dockerfile si es relevante
       - JWT_SECRET=${JWT_SECRET}
       - JWT_ACCESS_TTL=${JWT_ACCESS_TTL}
       - JWT_REFRESH_TTL_MS=${JWT_REFRESH_TTL_MS}
     volumes:
-      # Sincroniza tu código para desarrollo (hot-reload)
+      # Sincroniza tu código local con el contenedor
       - ./:/usr/src/app
+      # Protege los node_modules instalados DENTRO del contenedor
       - /usr/src/app/node_modules

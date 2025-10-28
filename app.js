@@ -2,7 +2,7 @@
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
-// const cookieParser = require('cookie-parser'); // Descomenta cuando lo uses
+const cookieParser = require('cookie-parser');
 const { buildAuthRouter } = require('./src/mantenimiento_usuarios/routes/auth.routes');
 
 function createApp({ repos }) {
@@ -10,21 +10,21 @@ function createApp({ repos }) {
 
   // --- Configuración de CORS Profesional ---
   const corsOptions = {
-    // Le decimos que solo acepte peticiones de la URL de nuestro frontend
-    // que está guardada en las variables de entorno.
+    // Le decimos que solo acepte peticiones de la URL de nuestro frontend que está guardada en las variables de entorno.
     origin: process.env.FRONTEND_URL,
 
-    // ¡MUY IMPORTANTE! Le decimos que acepte el envío de credenciales
-    // como las cookies de sesión (HttpOnly).
+    // ¡MUY IMPORTANTE! Le decimos que acepte el envío de credenciales como las cookies de sesión (HttpOnly).
     credentials: true,
   };
+
+  app.options('*', cors(corsOptions));
 
   /* ======= Middlewares globales ======= */
   // 👇 Usamos las opciones de CORS que definimos
   app.use(cors(corsOptions));
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
-  // app.use(cookieParser()); // Descomenta cuando lo uses
+  app.use(cookieParser()); 
   app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
   /* ======= Rutas ======= */

@@ -68,15 +68,31 @@ const makeAuthController = ({
   // POST /api/auth/login
   login: async (req, res) => {
     try {
-      const ctx = { ip: req.ip, ua: req.headers["user-agent"] };
-      const data = await loginUC(
-        { email: req.body.email, password: req.body.password },
-        ctx
-      );
-      return res.status(200).json({
-        message: "Login exitoso",
-        data,
-      });
+      const ctx = { ip: req.ip, ua: req.headers['user-agent'] };
+      // El caso de uso 'loginUC' devuelve los tokens
+      const { accessToken, refreshToken } = await loginUC({ email: req.body.email, password: req.body.password }, ctx);
+
+      // --- Configuración de Cookies Seguras ---
+      const accessCookieOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'Strict',
+        maxAge: 15 * 60 * 1000 // 15 minutos
+      };
+      res.cookie('accessToken', accessToken, accessCookieOptions);
+
+      const REFRESH_TTL_MS = parseInt(process.env.JWT_REFRESH_TTL_MS || '604800000', 10);
+      const refreshCookieOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'Strict',
+        maxAge: REFRESH_TTL_MS
+      };
+      res.cookie('refreshToken', refreshToken, refreshCookieOptions);
+      
+      // Enviamos una respuesta simple de éxito, sin los tokens en el body
+      return res.status(200).json({ message: 'Login exitoso' });
+
     } catch (err) {
       const { status, message } = mapError(err);
       return res.status(status).json({ message });
