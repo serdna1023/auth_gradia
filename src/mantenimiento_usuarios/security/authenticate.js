@@ -1,8 +1,8 @@
 const { verifyAccess } = require('./jwt');
 
 module.exports = (req, res, next) => {
-  // Leemos el token de la cookie 'accessToken' en lugar de la cabecera 'Authorization'.
-  const token = req.cookies.accessToken;
+
+const token = req.cookies.accessToken;
 
   if (!token) {
     return res.status(401).json({ message: 'NO_AUTH_TOKEN' });
