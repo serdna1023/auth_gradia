@@ -99,31 +99,77 @@ const makeAuthController = ({
     }
   },
 
-  // POST /api/auth/refresh
+
+// POST /api/auth/refresh
   refresh: async (req, res) => {
     try {
-      const ctx = { ip: req.ip };
-      const data = await refreshUC(
-        { refreshToken: req.body.refreshToken },
+      const ctx = { ip: req.ip, ua: req.headers['user-agent'] }; // Añadí user-agent para consistencia
+      
+      // 1. LEEMOS EL TOKEN DE LA COOKIE
+      const oldRefreshToken = req.cookies.refreshToken;
+
+      if (!oldRefreshToken) {
+        return res.status(401).json({ message: 'NO_REFRESH_TOKEN_COOKIE' });
+      }
+
+      // 2. LLAMAMOS AL USE CASE (que devuelve { accessToken, refreshToken: raw })
+      //    (Tu use case 'refreshSession' devuelve el nuevo token en 'refreshToken')
+      const { accessToken: newAccessToken, refreshToken: newRefreshToken } = await refreshUC(
+        { refreshToken: oldRefreshToken },
         ctx
       );
-      return res.status(200).json({
-        message: "Token renovado",
-        data,
-      });
+
+      // 3. ESTABLECEMOS LAS NUEVAS COOKIES (igual que en login)
+      const accessCookieOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'Strict',
+        maxAge: 15 * 60 * 1000 // 15 minutos
+      };
+      res.cookie('accessToken', newAccessToken, accessCookieOptions); // El nuevo accessToken
+
+      const REFRESH_TTL_MS = parseInt(process.env.JWT_REFRESH_TTL_MS || '604800000', 10);
+      const refreshCookieOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'Strict',
+        maxAge: REFRESH_TTL_MS
+      };
+      res.cookie('refreshToken', newRefreshToken, refreshCookieOptions); // El nuevo refreshToken
+      
+      return res.status(200).json({ message: 'Token renovado' });
+
     } catch (err) {
       const { status, message } = mapError(err);
       return res.status(status).json({ message });
     }
   },
 
-  // POST /api/auth/logout
+
+// POST /api/auth/logout
   logout: async (req, res) => {
     try {
-      const data = await logoutUC({ refreshToken: req.body.refreshToken });
+      // 1. LEEMOS EL TOKEN DE LA COOKIE (¡NO DEL BODY!)
+      const tokenDeLaCookie = req.cookies.refreshToken;
+
+      // 2. LLAMAMOS AL USE CASE (solo si existe el token)
+      if (tokenDeLaCookie) {
+        await logoutUC({ refreshToken: tokenDeLaCookie });
+      }
+
+      // 3. LIMPIAMOS AMBAS COOKIES DEL NAVEGADOR
+      const cookieOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'Strict',
+      };
+      res.clearCookie('refreshToken', cookieOptions);
+      res.clearCookie('accessToken', cookieOptions);
+
+      // 4. RESPONDEMOS ÉXITO
       return res.status(200).json({
         message: "Sesión cerrada correctamente",
-        data,
+        data: { ok: true }
       });
     } catch (err) {
       const { status, message } = mapError(err);
