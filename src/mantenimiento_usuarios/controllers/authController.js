@@ -263,9 +263,33 @@ const makeAuthController = ({
       const ctx = { ip: req.ip, ua: req.headers['user-agent'] };
       const result = await googleLoginUC({ code, ctx }); // Llama a la lógica principal
 
-      // Redirigimos al usuario al frontend, pasándole los tokens de NUESTRA app.
-      // Estrategia simple: usar parámetros de URL. Considera cookies HttpOnly para producción.
-      const frontendRedirectUrl = `${process.env.FRONTEND_URL}/auth/callback?accessToken=${result.accessToken}&refreshToken=${result.refreshToken}&isNewUser=${result.isNewUser}`;
+      // En lugar de enviar tokens en la URL (inseguro), establecemos cookies httpOnly
+      // iguales a las que usamos en /login y /refresh, y redirigimos sin tokens.
+      const accessCookieOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        // 'Lax' es una opción razonable para flujos de redirect cross-site
+        // Si tu frontend está en otro dominio y necesitas cookies en terceros,
+        // usa 'None' y secure: true (pero evalúa riesgos CSRF).
+        sameSite: 'Lax',
+        maxAge: 15 * 60 * 1000 // 15 minutos
+      };
+      res.cookie('accessToken', result.accessToken, accessCookieOptions);
+
+      const REFRESH_TTL_MS = parseInt(process.env.JWT_REFRESH_TTL_MS || '604800000', 10);
+      const refreshCookieOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'Lax',
+        maxAge: REFRESH_TTL_MS
+      };
+      res.cookie('refreshToken', result.refreshToken, refreshCookieOptions);
+
+      // Redirigimos al frontend sin tokens; incluimos sólo un flag no sensible
+      // (isNewUser) si el frontend lo necesita para UX.
+      const frontendRedirectUrl = `${process.env.FRONTEND_URL}/auth/callback?isNewUser=${result.isNewUser}`;
+      // Nota: el frontend debe hacer peticiones con `credentials: 'include'`
+      // para que las cookies httpOnly sean enviadas al backend.
       res.redirect(frontendRedirectUrl);
 
     } catch (err) {

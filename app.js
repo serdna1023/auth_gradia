@@ -16,9 +16,6 @@ function createApp({ repos }) {
     // ¡MUY IMPORTANTE! Le decimos que acepte el envío de credenciales como las cookies de sesión (HttpOnly).
     credentials: true,
   };
-
-  app.use(cors(corsOptions));
-
   /* ======= Middlewares globales ======= */
   // 👇 Usamos las opciones de CORS que definimos
   app.use(cors(corsOptions));
