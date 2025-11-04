@@ -123,7 +123,7 @@ const makeAuthController = ({
       const accessCookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'Strict',
+        sameSite: 'Lax',
         maxAge: 15 * 60 * 1000 // 15 minutos
       };
       res.cookie('accessToken', newAccessToken, accessCookieOptions); // El nuevo accessToken
@@ -132,7 +132,7 @@ const makeAuthController = ({
       const refreshCookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'Strict',
+        sameSite: 'Lax',
         maxAge: REFRESH_TTL_MS
       };
       res.cookie('refreshToken', newRefreshToken, refreshCookieOptions); // El nuevo refreshToken
@@ -161,7 +161,7 @@ const makeAuthController = ({
       const cookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'Strict',
+        sameSite: 'Lax',
       };
       res.clearCookie('refreshToken', cookieOptions);
       res.clearCookie('accessToken', cookieOptions);
