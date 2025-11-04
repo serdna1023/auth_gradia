@@ -1,3 +1,6 @@
+// Este código asume que tienes esta variable en tu .env local y en Render:
+// ALLOW_INSECURE_COOKIES=true
+
 function mapError(err) {
   // Respeta el status si viene del use-case (e.status)
   let status = err.status || err.statusCode || 500;
@@ -19,6 +22,15 @@ function mapError(err) {
 
   return { status, message };
 }
+
+// 🔑 CAMBIO CLAVE: Lógica de la bandera de seguridad
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const ALLOW_INSECURE = process.env.ALLOW_INSECURE_COOKIES === 'true'; 
+
+// La variable 'secure' será TRUE solo si estamos en producción Y NO permitimos inseguridad.
+// Si ALLOW_INSECURE es TRUE (en tu desarrollo actual), esto será FALSE.
+const COOKIE_SECURE_FLAG = IS_PRODUCTION && !ALLOW_INSECURE;
+
 
 const makeAuthController = ({
   registerPublicUC,
@@ -69,13 +81,12 @@ const makeAuthController = ({
   login: async (req, res) => {
     try {
       const ctx = { ip: req.ip, ua: req.headers['user-agent'] };
-      // El caso de uso 'loginUC' devuelve los tokens
       const { accessToken, refreshToken } = await loginUC({ email: req.body.email, password: req.body.password }, ctx);
 
       // --- Configuración de Cookies Seguras ---
       const accessCookieOptions = {
         httpOnly: true,
-        secure: false,
+        secure: COOKIE_SECURE_FLAG, // 👈 USAMOS LA VARIABLE DEFINIDA
         sameSite: 'Lax',
         maxAge: 15 * 60 * 1000 // 15 minutos
       };
@@ -84,7 +95,7 @@ const makeAuthController = ({
       const REFRESH_TTL_MS = parseInt(process.env.JWT_REFRESH_TTL_MS || '604800000', 10);
       const refreshCookieOptions = {
         httpOnly: true,
-        secure: false,
+        secure: COOKIE_SECURE_FLAG, // 👈 USAMOS LA VARIABLE DEFINIDA
         sameSite: 'Lax',
         maxAge: REFRESH_TTL_MS
       };
@@ -122,7 +133,7 @@ const makeAuthController = ({
       // 3. ESTABLECEMOS LAS NUEVAS COOKIES (igual que en login)
       const accessCookieOptions = {
         httpOnly: true,
-        secure: false,
+        secure: COOKIE_SECURE_FLAG, // 👈 USAMOS LA VARIABLE DEFINIDA
         sameSite: 'Lax',
         maxAge: 15 * 60 * 1000 // 15 minutos
       };
@@ -131,7 +142,7 @@ const makeAuthController = ({
       const REFRESH_TTL_MS = parseInt(process.env.JWT_REFRESH_TTL_MS || '604800000', 10);
       const refreshCookieOptions = {
         httpOnly: true,
-        secure: false,
+        secure: COOKIE_SECURE_FLAG, // 👈 USAMOS LA VARIABLE DEFINIDA
         sameSite: 'Lax',
         maxAge: REFRESH_TTL_MS
       };
@@ -160,7 +171,7 @@ const makeAuthController = ({
       // 3. LIMPIAMOS AMBAS COOKIES DEL NAVEGADOR
       const cookieOptions = {
         httpOnly: true,
-        secure: false,
+        secure: COOKIE_SECURE_FLAG, // 👈 USAMOS LA VARIABLE DEFINIDA
         sameSite: 'Lax',
       };
       res.clearCookie('refreshToken', cookieOptions);
@@ -267,7 +278,7 @@ const makeAuthController = ({
       // iguales a las que usamos en /login y /refresh, y redirigimos sin tokens.
       const accessCookieOptions = {
         httpOnly: true,
-        secure: false,
+        secure: COOKIE_SECURE_FLAG, // 🔑 CORREGIDO
         // 'Lax' es una opción razonable para flujos de redirect cross-site
         // Si tu frontend está en otro dominio y necesitas cookies en terceros,
         // usa 'None' y secure: true (pero evalúa riesgos CSRF).
@@ -279,7 +290,7 @@ const makeAuthController = ({
       const REFRESH_TTL_MS = parseInt(process.env.JWT_REFRESH_TTL_MS || '604800000', 10);
       const refreshCookieOptions = {
         httpOnly: true,
-        secure: false,
+        secure: COOKIE_SECURE_FLAG, // 🔑 CORREGIDO
         sameSite: 'Lax',
         maxAge: REFRESH_TTL_MS
       };
