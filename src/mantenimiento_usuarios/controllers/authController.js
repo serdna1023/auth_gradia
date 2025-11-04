@@ -1,5 +1,16 @@
-// Este código asume que tienes esta variable en tu .env local y en Render:
-// ALLOW_INSECURE_COOKIES=true
+// Definición de variables de entorno para la lógica de seguridad
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+// 🔑 CLAVE: Determina si estamos en modo de prueba http://localhost
+const ALLOW_INSECURE = process.env.ALLOW_INSECURE_COOKIES === 'true'; 
+
+// La bandera 'secure' para la cookie: Solo es TRUE si es Producción Y NO permitimos inseguridad.
+// Esto será FALSE en tu prueba de localhost a Render.
+const COOKIE_SECURE_FLAG = IS_PRODUCTION && !ALLOW_INSECURE; 
+
+// 🔑 CLAVE: Define el dominio de la cookie. Si permitimos inseguridad, el dominio es 'localhost'.
+// Si no, es el dominio base de Render.
+const COOKIE_DOMAIN = ALLOW_INSECURE ? 'localhost' : '.onrender.com';
+
 
 function mapError(err) {
   // Respeta el status si viene del use-case (e.status)
@@ -22,16 +33,6 @@ function mapError(err) {
 
   return { status, message };
 }
-
-// 🔑 CAMBIO CLAVE: Lógica de la bandera de seguridad
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-const ALLOW_INSECURE = process.env.ALLOW_INSECURE_COOKIES === 'true'; 
-
-// La variable 'secure' será TRUE solo si estamos en producción Y NO permitimos inseguridad.
-// Si ALLOW_INSECURE es TRUE (en tu desarrollo actual), esto será FALSE.
-const COOKIE_SECURE_FLAG = IS_PRODUCTION && !ALLOW_INSECURE;
-const COOKIE_DOMAIN = ALLOW_INSECURE ? 'localhost' : '.onrender.com';
-
 
 const makeAuthController = ({
   registerPublicUC,
@@ -87,20 +88,20 @@ const makeAuthController = ({
       // --- Configuración de Cookies Seguras ---
       const accessCookieOptions = {
         httpOnly: true,
-        secure: COOKIE_SECURE_FLAG, // 👈 USAMOS LA VARIABLE DEFINIDA
+        secure: COOKIE_SECURE_FLAG,
         sameSite: 'Lax',
-        maxAge: 15 * 60 * 1000, // 15 minutos
-        domain: COOKIE_DOMAIN,
+        domain: COOKIE_DOMAIN, // 👈 CORREGIDO
+        maxAge: 15 * 60 * 1000 // 15 minutos
       };
       res.cookie('accessToken', accessToken, accessCookieOptions);
 
       const REFRESH_TTL_MS = parseInt(process.env.JWT_REFRESH_TTL_MS || '604800000', 10);
       const refreshCookieOptions = {
         httpOnly: true,
-        secure: COOKIE_SECURE_FLAG, // 👈 USAMOS LA VARIABLE DEFINIDA
+        secure: COOKIE_SECURE_FLAG,
         sameSite: 'Lax',
-        maxAge: REFRESH_TTL_MS,
-        domain: COOKIE_DOMAIN,
+        domain: COOKIE_DOMAIN, // 👈 CORREGIDO
+        maxAge: REFRESH_TTL_MS
       };
       res.cookie('refreshToken', refreshToken, refreshCookieOptions);
       
@@ -136,20 +137,20 @@ const makeAuthController = ({
       // 3. ESTABLECEMOS LAS NUEVAS COOKIES (igual que en login)
       const accessCookieOptions = {
         httpOnly: true,
-        secure: COOKIE_SECURE_FLAG, // 👈 USAMOS LA VARIABLE DEFINIDA
+        secure: COOKIE_SECURE_FLAG,
         sameSite: 'Lax',
-        maxAge: 15 * 60 * 1000, // 15 minutos
-        domain: COOKIE_DOMAIN,
+        domain: COOKIE_DOMAIN, // 👈 CORREGIDO
+        maxAge: 15 * 60 * 1000 // 15 minutos
       };
       res.cookie('accessToken', newAccessToken, accessCookieOptions); // El nuevo accessToken
 
       const REFRESH_TTL_MS = parseInt(process.env.JWT_REFRESH_TTL_MS || '604800000', 10);
       const refreshCookieOptions = {
         httpOnly: true,
-        secure: COOKIE_SECURE_FLAG, // 👈 USAMOS LA VARIABLE DEFINIDA
+        secure: COOKIE_SECURE_FLAG,
         sameSite: 'Lax',
-        maxAge: REFRESH_TTL_MS,
-        domain: COOKIE_DOMAIN,
+        domain: COOKIE_DOMAIN, // 👈 CORREGIDO
+        maxAge: REFRESH_TTL_MS
       };
       res.cookie('refreshToken', newRefreshToken, refreshCookieOptions); // El nuevo refreshToken
       
@@ -176,8 +177,9 @@ const makeAuthController = ({
       // 3. LIMPIAMOS AMBAS COOKIES DEL NAVEGADOR
       const cookieOptions = {
         httpOnly: true,
-        secure: COOKIE_SECURE_FLAG, // 👈 USAMOS LA VARIABLE DEFINIDA
+        secure: COOKIE_SECURE_FLAG,
         sameSite: 'Lax',
+        domain: COOKIE_DOMAIN, // 👈 CORREGIDO
       };
       res.clearCookie('refreshToken', cookieOptions);
       res.clearCookie('accessToken', cookieOptions);
@@ -284,11 +286,8 @@ const makeAuthController = ({
       const accessCookieOptions = {
         httpOnly: true,
         secure: COOKIE_SECURE_FLAG, // 🔑 CORREGIDO
-        // 'Lax' es una opción razonable para flujos de redirect cross-site
-        // Si tu frontend está en otro dominio y necesitas cookies en terceros,
-        // usa 'None' y secure: true (pero evalúa riesgos CSRF).
         sameSite: 'Lax',
-        domain: COOKIE_DOMAIN,
+        domain: COOKIE_DOMAIN, // 👈 CORREGIDO
         maxAge: 15 * 60 * 1000 // 15 minutos
       };
       res.cookie('accessToken', result.accessToken, accessCookieOptions);
@@ -298,8 +297,8 @@ const makeAuthController = ({
         httpOnly: true,
         secure: COOKIE_SECURE_FLAG, // 🔑 CORREGIDO
         sameSite: 'Lax',
-        maxAge: REFRESH_TTL_MS,
-        domain: COOKIE_DOMAIN,
+        domain: COOKIE_DOMAIN, // 👈 CORREGIDO
+        maxAge: REFRESH_TTL_MS
       };
       res.cookie('refreshToken', result.refreshToken, refreshCookieOptions);
 
