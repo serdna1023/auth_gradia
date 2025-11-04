@@ -75,7 +75,7 @@ const makeAuthController = ({
       // --- Configuración de Cookies Seguras ---
       const accessCookieOptions = {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: false,
         sameSite: 'Lax',
         maxAge: 15 * 60 * 1000 // 15 minutos
       };
@@ -84,7 +84,7 @@ const makeAuthController = ({
       const REFRESH_TTL_MS = parseInt(process.env.JWT_REFRESH_TTL_MS || '604800000', 10);
       const refreshCookieOptions = {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: false,
         sameSite: 'Lax',
         maxAge: REFRESH_TTL_MS
       };
@@ -122,7 +122,7 @@ const makeAuthController = ({
       // 3. ESTABLECEMOS LAS NUEVAS COOKIES (igual que en login)
       const accessCookieOptions = {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: false,
         sameSite: 'Lax',
         maxAge: 15 * 60 * 1000 // 15 minutos
       };
@@ -131,7 +131,7 @@ const makeAuthController = ({
       const REFRESH_TTL_MS = parseInt(process.env.JWT_REFRESH_TTL_MS || '604800000', 10);
       const refreshCookieOptions = {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: false,
         sameSite: 'Lax',
         maxAge: REFRESH_TTL_MS
       };
@@ -160,7 +160,7 @@ const makeAuthController = ({
       // 3. LIMPIAMOS AMBAS COOKIES DEL NAVEGADOR
       const cookieOptions = {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: false,
         sameSite: 'Lax',
       };
       res.clearCookie('refreshToken', cookieOptions);
@@ -267,7 +267,7 @@ const makeAuthController = ({
       // iguales a las que usamos en /login y /refresh, y redirigimos sin tokens.
       const accessCookieOptions = {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: false,
         // 'Lax' es una opción razonable para flujos de redirect cross-site
         // Si tu frontend está en otro dominio y necesitas cookies en terceros,
         // usa 'None' y secure: true (pero evalúa riesgos CSRF).
@@ -279,7 +279,7 @@ const makeAuthController = ({
       const REFRESH_TTL_MS = parseInt(process.env.JWT_REFRESH_TTL_MS || '604800000', 10);
       const refreshCookieOptions = {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: false,
         sameSite: 'Lax',
         maxAge: REFRESH_TTL_MS
       };
