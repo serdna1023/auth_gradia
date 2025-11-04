@@ -30,6 +30,7 @@ const ALLOW_INSECURE = process.env.ALLOW_INSECURE_COOKIES === 'true';
 // La variable 'secure' será TRUE solo si estamos en producción Y NO permitimos inseguridad.
 // Si ALLOW_INSECURE es TRUE (en tu desarrollo actual), esto será FALSE.
 const COOKIE_SECURE_FLAG = IS_PRODUCTION && !ALLOW_INSECURE;
+const COOKIE_DOMAIN = ALLOW_INSECURE ? 'localhost' : '.onrender.com';
 
 
 const makeAuthController = ({
@@ -88,7 +89,8 @@ const makeAuthController = ({
         httpOnly: true,
         secure: COOKIE_SECURE_FLAG, // 👈 USAMOS LA VARIABLE DEFINIDA
         sameSite: 'Lax',
-        maxAge: 15 * 60 * 1000 // 15 minutos
+        maxAge: 15 * 60 * 1000, // 15 minutos
+        domain: COOKIE_DOMAIN,
       };
       res.cookie('accessToken', accessToken, accessCookieOptions);
 
@@ -97,7 +99,8 @@ const makeAuthController = ({
         httpOnly: true,
         secure: COOKIE_SECURE_FLAG, // 👈 USAMOS LA VARIABLE DEFINIDA
         sameSite: 'Lax',
-        maxAge: REFRESH_TTL_MS
+        maxAge: REFRESH_TTL_MS,
+        domain: COOKIE_DOMAIN,
       };
       res.cookie('refreshToken', refreshToken, refreshCookieOptions);
       
@@ -135,7 +138,8 @@ const makeAuthController = ({
         httpOnly: true,
         secure: COOKIE_SECURE_FLAG, // 👈 USAMOS LA VARIABLE DEFINIDA
         sameSite: 'Lax',
-        maxAge: 15 * 60 * 1000 // 15 minutos
+        maxAge: 15 * 60 * 1000, // 15 minutos
+        domain: COOKIE_DOMAIN,
       };
       res.cookie('accessToken', newAccessToken, accessCookieOptions); // El nuevo accessToken
 
@@ -144,7 +148,8 @@ const makeAuthController = ({
         httpOnly: true,
         secure: COOKIE_SECURE_FLAG, // 👈 USAMOS LA VARIABLE DEFINIDA
         sameSite: 'Lax',
-        maxAge: REFRESH_TTL_MS
+        maxAge: REFRESH_TTL_MS,
+        domain: COOKIE_DOMAIN,
       };
       res.cookie('refreshToken', newRefreshToken, refreshCookieOptions); // El nuevo refreshToken
       
@@ -283,6 +288,7 @@ const makeAuthController = ({
         // Si tu frontend está en otro dominio y necesitas cookies en terceros,
         // usa 'None' y secure: true (pero evalúa riesgos CSRF).
         sameSite: 'Lax',
+        domain: COOKIE_DOMAIN,
         maxAge: 15 * 60 * 1000 // 15 minutos
       };
       res.cookie('accessToken', result.accessToken, accessCookieOptions);
@@ -292,7 +298,8 @@ const makeAuthController = ({
         httpOnly: true,
         secure: COOKIE_SECURE_FLAG, // 🔑 CORREGIDO
         sameSite: 'Lax',
-        maxAge: REFRESH_TTL_MS
+        maxAge: REFRESH_TTL_MS,
+        domain: COOKIE_DOMAIN,
       };
       res.cookie('refreshToken', result.refreshToken, refreshCookieOptions);
 
