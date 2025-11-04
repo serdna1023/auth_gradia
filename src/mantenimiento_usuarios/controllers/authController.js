@@ -76,7 +76,7 @@ const makeAuthController = ({
       const accessCookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'Strict',
+        sameSite: 'Lax',
         maxAge: 15 * 60 * 1000 // 15 minutos
       };
       res.cookie('accessToken', accessToken, accessCookieOptions);
@@ -85,7 +85,7 @@ const makeAuthController = ({
       const refreshCookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'Strict',
+        sameSite: 'Lax',
         maxAge: REFRESH_TTL_MS
       };
       res.cookie('refreshToken', refreshToken, refreshCookieOptions);
