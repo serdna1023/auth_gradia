@@ -1,15 +1,8 @@
+// src/mantenimiento_usuarios/controllers/authController.js
+
 // Definición de variables de entorno para la lógica de seguridad
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-// 🔑 CLAVE: Determina si estamos en modo de prueba http://localhost
-const ALLOW_INSECURE = process.env.ALLOW_INSECURE_COOKIES === 'true'; 
-
-// La bandera 'secure' para la cookie: Solo es TRUE si es Producción Y NO permitimos inseguridad.
-// Esto será FALSE en tu prueba de localhost a Render.
-const COOKIE_SECURE_FLAG = IS_PRODUCTION && !ALLOW_INSECURE; 
-
-// 🔑 CLAVE: Define el dominio de la cookie. Si permitimos inseguridad, el dominio es 'localhost'.
-// Si no, es el dominio base de Render.
-const COOKIE_DOMAIN = ALLOW_INSECURE ? 'localhost' : '.onrender.com';
+// No necesitamos ALLOW_INSECURE_COOKIES, volvemos al chequeo estándar.
 
 
 function mapError(err) {
@@ -33,6 +26,10 @@ function mapError(err) {
 
   return { status, message };
 }
+
+// 🔑 CLAVE: Usamos la configuración estándar y eliminamos la lógica de dominio manual.
+const COOKIE_SECURE_FLAG = IS_PRODUCTION;
+
 
 const makeAuthController = ({
   registerPublicUC,
@@ -88,9 +85,9 @@ const makeAuthController = ({
       // --- Configuración de Cookies Seguras ---
       const accessCookieOptions = {
         httpOnly: true,
-        secure: COOKIE_SECURE_FLAG,
+        secure: COOKIE_SECURE_FLAG, // 👈 USAMOS LA BANDERA SIMPLE DE PRODUCCIÓN
         sameSite: 'Lax',
-        domain: COOKIE_DOMAIN, // 👈 CORREGIDO
+        // Eliminamos 'domain'
         maxAge: 15 * 60 * 1000 // 15 minutos
       };
       res.cookie('accessToken', accessToken, accessCookieOptions);
@@ -98,9 +95,9 @@ const makeAuthController = ({
       const REFRESH_TTL_MS = parseInt(process.env.JWT_REFRESH_TTL_MS || '604800000', 10);
       const refreshCookieOptions = {
         httpOnly: true,
-        secure: COOKIE_SECURE_FLAG,
+        secure: COOKIE_SECURE_FLAG, // 👈 USAMOS LA BANDERA SIMPLE DE PRODUCCIÓN
         sameSite: 'Lax',
-        domain: COOKIE_DOMAIN, // 👈 CORREGIDO
+        // Eliminamos 'domain'
         maxAge: REFRESH_TTL_MS
       };
       res.cookie('refreshToken', refreshToken, refreshCookieOptions);
@@ -118,41 +115,37 @@ const makeAuthController = ({
 // POST /api/auth/refresh
   refresh: async (req, res) => {
     try {
-      const ctx = { ip: req.ip, ua: req.headers['user-agent'] }; // Añadí user-agent para consistencia
-      
-      // 1. LEEMOS EL TOKEN DE LA COOKIE
+      const ctx = { ip: req.ip, ua: req.headers['user-agent'] };
       const oldRefreshToken = req.cookies.refreshToken;
 
       if (!oldRefreshToken) {
         return res.status(401).json({ message: 'NO_REFRESH_TOKEN_COOKIE' });
       }
 
-      // 2. LLAMAMOS AL USE CASE (que devuelve { accessToken, refreshToken: raw })
-      //    (Tu use case 'refreshSession' devuelve el nuevo token en 'refreshToken')
       const { accessToken: newAccessToken, refreshToken: newRefreshToken } = await refreshUC(
         { refreshToken: oldRefreshToken },
         ctx
       );
 
-      // 3. ESTABLECEMOS LAS NUEVAS COOKIES (igual que en login)
+      // 3. ESTABLECEMOS LAS NUEVAS COOKIES
       const accessCookieOptions = {
         httpOnly: true,
-        secure: COOKIE_SECURE_FLAG,
+        secure: COOKIE_SECURE_FLAG, // 👈 USAMOS LA BANDERA SIMPLE DE PRODUCCIÓN
         sameSite: 'Lax',
-        domain: COOKIE_DOMAIN, // 👈 CORREGIDO
+        // Eliminamos 'domain'
         maxAge: 15 * 60 * 1000 // 15 minutos
       };
-      res.cookie('accessToken', newAccessToken, accessCookieOptions); // El nuevo accessToken
+      res.cookie('accessToken', newAccessToken, accessCookieOptions); 
 
       const REFRESH_TTL_MS = parseInt(process.env.JWT_REFRESH_TTL_MS || '604800000', 10);
       const refreshCookieOptions = {
         httpOnly: true,
-        secure: COOKIE_SECURE_FLAG,
+        secure: COOKIE_SECURE_FLAG, // 👈 USAMOS LA BANDERA SIMPLE DE PRODUCCIÓN
         sameSite: 'Lax',
-        domain: COOKIE_DOMAIN, // 👈 CORREGIDO
+        // Eliminamos 'domain'
         maxAge: REFRESH_TTL_MS
       };
-      res.cookie('refreshToken', newRefreshToken, refreshCookieOptions); // El nuevo refreshToken
+      res.cookie('refreshToken', newRefreshToken, refreshCookieOptions); 
       
       return res.status(200).json({ message: 'Token renovado' });
 
@@ -166,10 +159,7 @@ const makeAuthController = ({
 // POST /api/auth/logout
   logout: async (req, res) => {
     try {
-      // 1. LEEMOS EL TOKEN DE LA COOKIE (¡NO DEL BODY!)
       const tokenDeLaCookie = req.cookies.refreshToken;
-
-      // 2. LLAMAMOS AL USE CASE (solo si existe el token)
       if (tokenDeLaCookie) {
         await logoutUC({ refreshToken: tokenDeLaCookie });
       }
@@ -177,14 +167,13 @@ const makeAuthController = ({
       // 3. LIMPIAMOS AMBAS COOKIES DEL NAVEGADOR
       const cookieOptions = {
         httpOnly: true,
-        secure: COOKIE_SECURE_FLAG,
+        secure: COOKIE_SECURE_FLAG, // 👈 USAMOS LA BANDERA SIMPLE DE PRODUCCIÓN
         sameSite: 'Lax',
-        domain: COOKIE_DOMAIN, // 👈 CORREGIDO
+        // Eliminamos 'domain'
       };
       res.clearCookie('refreshToken', cookieOptions);
       res.clearCookie('accessToken', cookieOptions);
 
-      // 4. RESPONDEMOS ÉXITO
       return res.status(200).json({
         message: "Sesión cerrada correctamente",
         data: { ok: true }
@@ -285,9 +274,9 @@ const makeAuthController = ({
       // iguales a las que usamos en /login y /refresh, y redirigimos sin tokens.
       const accessCookieOptions = {
         httpOnly: true,
-        secure: COOKIE_SECURE_FLAG, // 🔑 CORREGIDO
+        secure: COOKIE_SECURE_FLAG, // 🔑 USAMOS LA BANDERA SIMPLE DE PRODUCCIÓN
         sameSite: 'Lax',
-        domain: COOKIE_DOMAIN, // 👈 CORREGIDO
+        // Eliminamos 'domain'
         maxAge: 15 * 60 * 1000 // 15 minutos
       };
       res.cookie('accessToken', result.accessToken, accessCookieOptions);
@@ -295,9 +284,9 @@ const makeAuthController = ({
       const REFRESH_TTL_MS = parseInt(process.env.JWT_REFRESH_TTL_MS || '604800000', 10);
       const refreshCookieOptions = {
         httpOnly: true,
-        secure: COOKIE_SECURE_FLAG, // 🔑 CORREGIDO
+        secure: COOKIE_SECURE_FLAG, // 🔑 USAMOS LA BANDERA SIMPLE DE PRODUCCIÓN
         sameSite: 'Lax',
-        domain: COOKIE_DOMAIN, // 👈 CORREGIDO
+        // Eliminamos 'domain'
         maxAge: REFRESH_TTL_MS
       };
       res.cookie('refreshToken', result.refreshToken, refreshCookieOptions);
