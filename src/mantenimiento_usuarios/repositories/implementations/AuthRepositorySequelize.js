@@ -105,11 +105,23 @@ class AuthRepositorySequelize extends AuthRepository {
     }
   }
 
-  findUsuarioById(id, options = {}) {
-    // Le pasamos el objeto de opciones (que contendrá el 'include')
-    // directamente a la función findByPk de Sequelize.
-    return Usuario.findByPk(id, options);
-  }
+  async findUsuarioById(id, options = {}) {
+    // 🔑 CAMBIO CLAVE: Agregamos el include a la tabla Persona por defecto
+    const defaultOptions = {
+        include: [
+            { 
+                model: Persona, 
+                as: 'Persona', // Usamos el alias que definiste en las relaciones
+                // Traemos los campos que el frontend necesita (nombre y apellido)
+                attributes: ['nombre', 'apellido'] 
+            }
+        ],
+        ...options
+    };
+
+    // Usamos findByPk
+    return Usuario.findByPk(id, defaultOptions);
+}
 
   async updateUserPassword(userId, newPasswordHash, updatedById) {
     await Usuario.update(

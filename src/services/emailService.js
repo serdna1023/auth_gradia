@@ -8,7 +8,7 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 const sendPasswordResetEmail = async (toEmail, token) => {
 
 const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3000';
-const resetLink = `${frontendURL}/reset-password?token=${token}`;
+const resetLink = `${frontendURL}/auth/reset-password?token=${token}`;
 
   const msg = {
     to: toEmail, 
