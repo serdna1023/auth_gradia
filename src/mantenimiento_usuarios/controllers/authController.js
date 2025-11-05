@@ -246,16 +246,22 @@ const makeAuthController = ({
   },
 
   // GET /api/auth/google
-  redirectToGoogle: (req, res) => {
+redirectToGoogle: (req, res) => {
     try {
-      const url = getGoogleAuthUrl(); // Obtiene la URL de Google desde el caso de uso
-      res.redirect(url); // Envía una respuesta de redirección al navegador
+      const url = getGoogleAuthUrl(); // Obtiene la URL de Google
+
+      // 🔑 CORRECCIÓN CLAVE: Responde manualmente con 302 y fuerza los headers CORS
+      res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      
+      // Responde con status 302, establece el header 'Location' y termina la respuesta.
+      return res.status(302).setHeader('Location', url).send(); 
+      
     } catch (error) {
         console.error("Error al generar URL de Google:", error);
-        // Idealmente, redirigir a una página de error en el frontend
         res.status(500).json({ message: 'Error al iniciar sesión con Google.' });
     }
-  },
+},
 
   // GET /api/auth/google/callback
   handleGoogleCallback: async (req, res) => {
