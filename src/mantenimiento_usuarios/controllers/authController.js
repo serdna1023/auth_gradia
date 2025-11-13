@@ -76,41 +76,36 @@ const makeAuthController = ({
     }
   },
 
-  // POST /api/auth/login
-  login: async (req, res) => {
+login: async (req, res) => {
     try {
       const ctx = { ip: req.ip, ua: req.headers['user-agent'] };
       const { accessToken, refreshToken } = await loginUC({ email: req.body.email, password: req.body.password }, ctx);
 
-      // --- Configuración de Cookies Seguras ---
-      const accessCookieOptions = {
-        httpOnly: true,
-        secure: COOKIE_SECURE_FLAG, // 👈 USAMOS LA BANDERA SIMPLE DE PRODUCCIÓN
-        sameSite: 'Lax',
-        // Eliminamos 'domain'
-        maxAge: 15 * 60 * 1000 // 15 minutos
-      };
-      res.cookie('accessToken', accessToken, accessCookieOptions);
-
+      // --- 🔑 CAMBIO HÍBRIDO ---
+      
+      // 1. MANTENEMOS el refreshToken en la cookie (seguro y 'refresh' sigue funcionando)
       const REFRESH_TTL_MS = parseInt(process.env.JWT_REFRESH_TTL_MS || '604800000', 10);
       const refreshCookieOptions = {
         httpOnly: true,
-        secure: COOKIE_SECURE_FLAG, // 👈 USAMOS LA BANDERA SIMPLE DE PRODUCCIÓN
+        secure: COOKIE_SECURE_FLAG, // (Usando la lógica de entorno que ya definimos)
         sameSite: 'Lax',
-        // Eliminamos 'domain'
+        domain: COOKIE_DOMAIN_TO_SET, // (Usando la lógica de entorno que ya definimos)
         maxAge: REFRESH_TTL_MS
       };
       res.cookie('refreshToken', refreshToken, refreshCookieOptions);
       
-      // Enviamos una respuesta simple de éxito, sin los tokens en el body
-      return res.status(200).json({ message: 'Login exitoso' });
+      // 2. DEVOLVEMOS el accessToken en el JSON para el bypass
+      return res.status(200).json({ 
+        message: 'Login exitoso',
+        accessToken: accessToken // 👈 ¡CLAVE!
+      });
+      // --- FIN CAMBIO ---
 
     } catch (err) {
       const { status, message } = mapError(err);
       return res.status(status).json({ message });
     }
   },
-
 
 // POST /api/auth/refresh
   refresh: async (req, res) => {
