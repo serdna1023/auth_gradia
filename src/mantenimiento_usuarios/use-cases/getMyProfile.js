@@ -1,9 +1,14 @@
-const { Rol } = require('../../SequelizeModels');
+const { Rol, Persona } = require('../../SequelizeModels');
 
 const getMyProfile = ({ authRepo }) => async (userId) => {
-    // Pedimos explícitamente los roles (Persona ya viene por defecto)
+    // 🔧 IMPORTANTE: Incluir tanto Persona como Roles explícitamente
     const user = await authRepo.findUsuarioById(userId, {
         include: [
+            {
+                model: Persona,
+                as: 'Persona',
+                attributes: ['nombre', 'apellido'],
+            },
             {
                 model: Rol,
                 as: 'Rols',

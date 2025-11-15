@@ -43,6 +43,7 @@ const makeAuthController = ({
   resetPasswordUC,
   googleLoginUC,
   getGoogleAuthUrl,
+  getMyProfileUC,  // 🔧 Agregado: use-case para obtener perfil del usuario
 }) => ({
 
   // POST /api/auth/register
@@ -316,9 +317,10 @@ redirectToGoogle: (req, res) => {
   getMyProfile: async (req, res) => {
     try {
       const userId = req.user.sub;
-      const userProfile = await getMyProfileUC({ userId });
+      const userProfile = await getMyProfileUC(userId);  // 🔧 FIX: Pasar userId directamente, no como objeto
       return res.status(200).json({ data: userProfile });
     } catch (err) {
+      console.error('Error en getMyProfile:', err);  // 🔧 Log para debugging
       const { status, message } = mapError(err);
       return res.status(status).json({ message });
     }
