@@ -76,30 +76,33 @@ const makeAuthController = ({
     }
   },
 
+// POST /api/auth/login
 login: async (req, res) => {
     try {
       const ctx = { ip: req.ip, ua: req.headers['user-agent'] };
       const { accessToken, refreshToken } = await loginUC({ email: req.body.email, password: req.body.password }, ctx);
 
-      // --- 🔑 CAMBIO HÍBRIDO ---
-      
-      // 1. MANTENEMOS el refreshToken en la cookie (seguro y 'refresh' sigue funcionando)
+      // --- 🔑 CONFIGURACIÓN PARA LOCALHOST ---
+      const accessCookieOptions = {
+        httpOnly: true,
+        secure: false, // 👈 'false' porque localhost es HTTP
+        sameSite: 'Lax', // 👈 ¡ESTA ES LA CLAVE! Permite cookies cross-port (3000 -> 8080)
+        // NO INCLUIR 'domain' para localhost
+        maxAge: 15 * 60 * 1000 // 15 minutos
+      };
+      res.cookie('accessToken', accessToken, accessCookieOptions); // 👈 VOLVEMOS A PONER LA COOKIE
+
       const REFRESH_TTL_MS = parseInt(process.env.JWT_REFRESH_TTL_MS || '604800000', 10);
       const refreshCookieOptions = {
         httpOnly: true,
-        secure: COOKIE_SECURE_FLAG, // (Usando la lógica de entorno que ya definimos)
-        sameSite: 'Lax',
-        domain: COOKIE_DOMAIN_TO_SET, // (Usando la lógica de entorno que ya definimos)
+        secure: false, // 👈 'false'
+        sameSite: 'Lax', // 👈 'Lax'
         maxAge: REFRESH_TTL_MS
       };
-      res.cookie('refreshToken', refreshToken, refreshCookieOptions);
+      res.cookie('refreshToken', refreshToken, refreshCookieOptions); // 👈 VOLVEMOS A PONER LA COOKIE
       
-      // 2. DEVOLVEMOS el accessToken en el JSON para el bypass
-      return res.status(200).json({ 
-        message: 'Login exitoso',
-        accessToken: accessToken // 👈 ¡CLAVE!
-      });
-      // --- FIN CAMBIO ---
+      // Enviamos una respuesta simple (¡SIN TOKENS EN EL JSON!)
+      return res.status(200).json({ message: 'Login exitoso' });
 
     } catch (err) {
       const { status, message } = mapError(err);
