@@ -1,8 +1,14 @@
-// src/mantenimiento_usuarios/controllers/authController.js
-
-// Definición de variables de entorno para la lógica de seguridad
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-// No necesitamos ALLOW_INSECURE_COOKIES, volvemos al chequeo estándar.
+
+// 🔑 CLAVE: Define la configuración segura para producción (HTTPS a HTTPS, Cross-Domain)
+const COOKIE_BASE_OPTIONS = {
+    httpOnly: true,
+    // Debe ser TRUE en producción (Render) para que la cookie sea enviada por Vercel (HTTPS)
+    secure: IS_PRODUCTION, 
+    // 'None' es obligatorio para que la cookie viaje entre dominios (Vercel <-> Render)
+    sameSite: 'None', 
+    // NO INCLUIR 'domain'
+};
 
 
 function mapError(err) {
@@ -27,10 +33,6 @@ function mapError(err) {
   return { status, message };
 }
 
-// 🔑 CLAVE: Usamos la configuración estándar y eliminamos la lógica de dominio manual.
-const COOKIE_SECURE_FLAG = IS_PRODUCTION;
-
-
 const makeAuthController = ({
   registerPublicUC,
   adminCreateUC,
@@ -46,7 +48,7 @@ const makeAuthController = ({
   getMyProfileUC,  // 🔧 Agregado: use-case para obtener perfil del usuario
 }) => ({
 
-  // POST /api/auth/register
+  // POST /api/auth/register (sin cambios)
   registerPublic: async (req, res) => {
     try {
       const data = await registerPublicUC(req.body);
@@ -60,7 +62,7 @@ const makeAuthController = ({
     }
   },
 
-  // POST /api/auth/admin/users
+  // POST /api/auth/admin/users (sin cambios)
   adminCreate: async (req, res) => {
     try {
       const userData = req.body;
@@ -83,24 +85,19 @@ login: async (req, res) => {
       const ctx = { ip: req.ip, ua: req.headers['user-agent'] };
       const { accessToken, refreshToken } = await loginUC({ email: req.body.email, password: req.body.password }, ctx);
 
-      // --- 🔑 CONFIGURACIÓN PARA LOCALHOST ---
+      // --- 🔑 USAMOS LA CONFIGURACIÓN FINAL DE PRODUCCIÓN ---
       const accessCookieOptions = {
-        httpOnly: true,
-        secure: false, // 👈 'false' porque localhost es HTTP
-        sameSite: 'Lax', // 👈 ¡ESTA ES LA CLAVE! Permite cookies cross-port (3000 -> 8080)
-        // NO INCLUIR 'domain' para localhost
+        ...COOKIE_BASE_OPTIONS,
         maxAge: 15 * 60 * 1000 // 15 minutos
       };
-      res.cookie('accessToken', accessToken, accessCookieOptions); // 👈 VOLVEMOS A PONER LA COOKIE
+      res.cookie('accessToken', accessToken, accessCookieOptions);
 
       const REFRESH_TTL_MS = parseInt(process.env.JWT_REFRESH_TTL_MS || '604800000', 10);
       const refreshCookieOptions = {
-        httpOnly: true,
-        secure: false, // 👈 'false'
-        sameSite: 'Lax', // 👈 'Lax'
+        ...COOKIE_BASE_OPTIONS,
         maxAge: REFRESH_TTL_MS
       };
-      res.cookie('refreshToken', refreshToken, refreshCookieOptions); // 👈 VOLVEMOS A PONER LA COOKIE
+      res.cookie('refreshToken', refreshToken, refreshCookieOptions);
       
       // Enviamos una respuesta simple (¡SIN TOKENS EN EL JSON!)
       return res.status(200).json({ message: 'Login exitoso' });
@@ -128,20 +125,14 @@ login: async (req, res) => {
 
       // 3. ESTABLECEMOS LAS NUEVAS COOKIES
       const accessCookieOptions = {
-        httpOnly: true,
-        secure: COOKIE_SECURE_FLAG, // 👈 USAMOS LA BANDERA SIMPLE DE PRODUCCIÓN
-        sameSite: 'Lax',
-        // Eliminamos 'domain'
+        ...COOKIE_BASE_OPTIONS,
         maxAge: 15 * 60 * 1000 // 15 minutos
       };
       res.cookie('accessToken', newAccessToken, accessCookieOptions); 
 
       const REFRESH_TTL_MS = parseInt(process.env.JWT_REFRESH_TTL_MS || '604800000', 10);
       const refreshCookieOptions = {
-        httpOnly: true,
-        secure: COOKIE_SECURE_FLAG, // 👈 USAMOS LA BANDERA SIMPLE DE PRODUCCIÓN
-        sameSite: 'Lax',
-        // Eliminamos 'domain'
+        ...COOKIE_BASE_OPTIONS,
         maxAge: REFRESH_TTL_MS
       };
       res.cookie('refreshToken', newRefreshToken, refreshCookieOptions); 
@@ -164,14 +155,9 @@ login: async (req, res) => {
       }
 
       // 3. LIMPIAMOS AMBAS COOKIES DEL NAVEGADOR
-      const cookieOptions = {
-        httpOnly: true,
-        secure: COOKIE_SECURE_FLAG, // 👈 USAMOS LA BANDERA SIMPLE DE PRODUCCIÓN
-        sameSite: 'Lax',
-        // Eliminamos 'domain'
-      };
-      res.clearCookie('refreshToken', cookieOptions);
-      res.clearCookie('accessToken', cookieOptions);
+      // 🔑 Usamos la base de opciones para el clearCookie
+      res.clearCookie('refreshToken', COOKIE_BASE_OPTIONS); 
+      res.clearCookie('accessToken', COOKIE_BASE_OPTIONS);
 
       return res.status(200).json({
         message: "Sesión cerrada correctamente",
@@ -183,13 +169,12 @@ login: async (req, res) => {
     }
   },
 
-  // PUT /api/auth/password
+  // PUT /api/auth/password (sin cambios)
   changePassword: async (req, res) => {
     try {
       const userId = req.user.sub;
       const { oldPassword, newPassword } = req.body;
 
-      // Llamamos al caso de uso, pasando el ID del usuario como el que actualiza
       const data = await changePasswordUC({
         userId,
         oldPassword,
@@ -204,7 +189,7 @@ login: async (req, res) => {
     }
   },
 
-  // POST /api/auth/forgot-password
+  // POST /api/auth/forgot-password (sin cambios)
   forgotPassword: async (req, res) => {
     try {
       const { email } = req.body;
@@ -217,7 +202,7 @@ login: async (req, res) => {
     }
   },
 
-  // DELETE /api/auth/admin/users/:id
+  // DELETE /api/auth/admin/users/:id (sin cambios)
   deleteUser: async (req, res) => {
     try {
       const userIdToDelete = req.params.id;
@@ -232,7 +217,7 @@ login: async (req, res) => {
     }
   },
   
-    // POST /api/auth/reset-password
+    // POST /api/auth/reset-password (sin cambios)
   resetPassword: async (req, res) => {
     try {
       const { token, newPassword } = req.body;
@@ -250,6 +235,7 @@ redirectToGoogle: (req, res) => {
       const url = getGoogleAuthUrl(); // Obtiene la URL de Google
 
       // 🔑 CORRECCIÓN CLAVE: Responde manualmente con 302 y fuerza los headers CORS
+      // Usamos el mismo patrón para el redirect de Google
       res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL);
       res.setHeader('Access-Control-Allow-Credentials', 'true');
       
@@ -275,23 +261,16 @@ redirectToGoogle: (req, res) => {
       const ctx = { ip: req.ip, ua: req.headers['user-agent'] };
       const result = await googleLoginUC({ code, ctx }); // Llama a la lógica principal
 
-      // En lugar de enviar tokens en la URL (inseguro), establecemos cookies httpOnly
-      // iguales a las que usamos en /login y /refresh, y redirigimos sin tokens.
+      // 4. ESTABLECER COOKIES (USANDO LA CONFIGURACIÓN FINAL)
       const accessCookieOptions = {
-        httpOnly: true,
-        secure: COOKIE_SECURE_FLAG, // 🔑 USAMOS LA BANDERA SIMPLE DE PRODUCCIÓN
-        sameSite: 'Lax',
-        // Eliminamos 'domain'
+        ...COOKIE_BASE_OPTIONS,
         maxAge: 15 * 60 * 1000 // 15 minutos
       };
       res.cookie('accessToken', result.accessToken, accessCookieOptions);
 
       const REFRESH_TTL_MS = parseInt(process.env.JWT_REFRESH_TTL_MS || '604800000', 10);
       const refreshCookieOptions = {
-        httpOnly: true,
-        secure: COOKIE_SECURE_FLAG, // 🔑 USAMOS LA BANDERA SIMPLE DE PRODUCCIÓN
-        sameSite: 'Lax',
-        // Eliminamos 'domain'
+        ...COOKIE_BASE_OPTIONS,
         maxAge: REFRESH_TTL_MS
       };
       res.cookie('refreshToken', result.refreshToken, refreshCookieOptions);
