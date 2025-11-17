@@ -1,25 +1,8 @@
-const IS_PRODUCTION = process.env.NODE_ENV === "production";
-
-/**
- * 🔑 CONFIGURACIÓN DE COOKIES:
- * - Local (HTTP ↔ HTTP):
- *      secure = false
- *      sameSite = "Lax"
- * - Producción (HTTPS ↔ HTTPS):
- *      secure = true
- *      sameSite = "None"
- */
-const COOKIE_BASE_OPTIONS = {
-  httpOnly: true,
-  secure: IS_PRODUCTION,
-  sameSite: IS_PRODUCTION ? "None" : "Lax",
-  // ❗ No incluir "domain" para evitar romper las cookies cross-domain
-};
+// src/mantenimiento_usuarios/controllers/authController.js
 
 function mapError(err) {
   let status = err.status || err.statusCode || 500;
   let message = err.message || "Error interno del servidor";
-
   if (err.name === "SequelizeUniqueConstraintError") {
     status = 409;
     message = "EMAIL_YA_REGISTRADO";
@@ -32,9 +15,38 @@ function mapError(err) {
     status = 400;
     message = "JSON_INVÁLIDO";
   }
-
   return { status, message };
 }
+
+
+
+// ======================================================
+// 🌍 CONFIGURACIÓN AUTOMÁTICA DE COOKIES (LOCAL / PROD)
+// ======================================================
+
+// Detecta si estamos en local
+const isLocalhost = process.env.NODE_ENV !== 'production';
+
+// Opciones base dinámicas
+const COOKIE_BASE_OPTIONS = {
+  httpOnly: true,
+  secure: !isLocalhost,               // ❗ producción = HTTPS obligatorio
+  sameSite: isLocalhost ? 'Lax' : 'None', // ❗ OAuth necesita None en producción
+};
+
+// Access token: corta vida
+const ACCESS_COOKIE_OPTIONS = {
+  ...COOKIE_BASE_OPTIONS,
+  maxAge: 15 * 60 * 1000, // 15 min
+};
+
+// Refresh token: larga vida
+const REFRESH_COOKIE_OPTIONS = {
+  ...COOKIE_BASE_OPTIONS,
+  maxAge: parseInt(process.env.JWT_REFRESH_TTL_MS || '604800000', 10),
+};
+
+
 
 const makeAuthController = ({
   registerPublicUC,
@@ -51,9 +63,9 @@ const makeAuthController = ({
   getMyProfileUC,
 }) => ({
 
-  // ----------------------
-  // REGISTER
-  // ----------------------
+  // ======================================================
+  // 🔐 REGISTER (PUBLIC)
+  // ======================================================
   registerPublic: async (req, res) => {
     try {
       const data = await registerPublicUC(req.body);
@@ -67,17 +79,16 @@ const makeAuthController = ({
     }
   },
 
-  // ----------------------
-  // ADMIN CREATE
-  // ----------------------
+  // ======================================================
+  // 🔐 ADMIN CREATE USER
+  // ======================================================
   adminCreate: async (req, res) => {
     try {
       const userData = req.body;
       const createdById = req.user.sub;
       const data = await adminCreateUC({ userData, createdById });
-
       return res.status(201).json({
-        message: "Usuario creado por ADMIN correctamente",
+        message: "Usuario creado correctamente por ADMIN",
         data,
       });
     } catch (err) {
@@ -86,34 +97,19 @@ const makeAuthController = ({
     }
   },
 
-  // ----------------------
-  // LOGIN
-  // ----------------------
+  // ======================================================
+  // 🔐 LOGIN
+  // ======================================================
   login: async (req, res) => {
     try {
       const ctx = { ip: req.ip, ua: req.headers["user-agent"] };
       const { accessToken, refreshToken } = await loginUC(
-        {
-          email: req.body.email,
-          password: req.body.password,
-        },
+        { email: req.body.email, password: req.body.password },
         ctx
       );
 
-      res.cookie("accessToken", accessToken, {
-        ...COOKIE_BASE_OPTIONS,
-        maxAge: 15 * 60 * 1000, // 15 min
-      });
-
-      const REFRESH_TTL_MS = parseInt(
-        process.env.JWT_REFRESH_TTL_MS || "604800000",
-        10
-      );
-
-      res.cookie("refreshToken", refreshToken, {
-        ...COOKIE_BASE_OPTIONS,
-        maxAge: REFRESH_TTL_MS,
-      });
+      res.cookie("accessToken", accessToken, ACCESS_COOKIE_OPTIONS);
+      res.cookie("refreshToken", refreshToken, REFRESH_COOKIE_OPTIONS);
 
       return res.status(200).json({ message: "Login exitoso" });
     } catch (err) {
@@ -122,37 +118,24 @@ const makeAuthController = ({
     }
   },
 
-  // ----------------------
-  // REFRESH TOKEN
-  // ----------------------
+  // ======================================================
+  // 🔄 REFRESH TOKENS
+  // ======================================================
   refresh: async (req, res) => {
     try {
-      const ctx = { ip: req.ip, ua: req.headers["user-agent"] };
       const oldRefreshToken = req.cookies.refreshToken;
-
       if (!oldRefreshToken) {
         return res.status(401).json({ message: "NO_REFRESH_TOKEN_COOKIE" });
       }
 
-      const {
-        accessToken: newAccessToken,
-        refreshToken: newRefreshToken,
-      } = await refreshUC({ refreshToken: oldRefreshToken }, ctx);
-
-      res.cookie("accessToken", newAccessToken, {
-        ...COOKIE_BASE_OPTIONS,
-        maxAge: 15 * 60 * 1000,
-      });
-
-      const REFRESH_TTL_MS = parseInt(
-        process.env.JWT_REFRESH_TTL_MS || "604800000",
-        10
+      const ctx = { ip: req.ip, ua: req.headers["user-agent"] };
+      const { accessToken: newAcc, refreshToken: newRef } = await refreshUC(
+        { refreshToken: oldRefreshToken },
+        ctx
       );
 
-      res.cookie("refreshToken", newRefreshToken, {
-        ...COOKIE_BASE_OPTIONS,
-        maxAge: REFRESH_TTL_MS,
-      });
+      res.cookie("accessToken", newAcc, ACCESS_COOKIE_OPTIONS);
+      res.cookie("refreshToken", newRef, REFRESH_COOKIE_OPTIONS);
 
       return res.status(200).json({ message: "Token renovado" });
     } catch (err) {
@@ -161,19 +144,16 @@ const makeAuthController = ({
     }
   },
 
-  // ----------------------
-  // LOGOUT
-  // ----------------------
+  // ======================================================
+  // 🚪 LOGOUT
+  // ======================================================
   logout: async (req, res) => {
     try {
-      const refreshCookie = req.cookies.refreshToken;
+      const token = req.cookies.refreshToken;
+      if (token) await logoutUC({ refreshToken: token });
 
-      if (refreshCookie) {
-        await logoutUC({ refreshToken: refreshCookie });
-      }
-
-      res.clearCookie("refreshToken", COOKIE_BASE_OPTIONS);
       res.clearCookie("accessToken", COOKIE_BASE_OPTIONS);
+      res.clearCookie("refreshToken", COOKIE_BASE_OPTIONS);
 
       return res.status(200).json({
         message: "Sesión cerrada correctamente",
@@ -185,95 +165,28 @@ const makeAuthController = ({
     }
   },
 
-  // ----------------------
-  // CHANGE PASSWORD
-  // ----------------------
-  changePassword: async (req, res) => {
-    try {
-      const userId = req.user.sub;
-      const { oldPassword, newPassword } = req.body;
 
-      const data = await changePasswordUC({
-        userId,
-        oldPassword,
-        newPassword,
-        updatedById: userId,
-      });
-
-      return res.status(200).json(data);
-    } catch (err) {
-      const { status, message } = mapError(err);
-      return res.status(status).json({ message });
-    }
-  },
-
-  // ----------------------
-  // FORGOT PASSWORD
-  // ----------------------
-  forgotPassword: async (req, res) => {
-    try {
-      const { email } = req.body;
-      const data = await forgotPasswordUC({ email });
-
-      return res.status(200).json(data);
-    } catch (err) {
-      const { status, message } = mapError(err);
-      return res.status(status).json({ message });
-    }
-  },
-
-  // ----------------------
-  // DELETE USER
-  // ----------------------
-  deleteUser: async (req, res) => {
-    try {
-      const userIdToDelete = req.params.id;
-      const adminId = req.user.sub;
-
-      const data = await deleteUserUC({ userIdToDelete, adminId });
-
-      return res.status(200).json(data);
-    } catch (err) {
-      const { status, message } = mapError(err);
-      return res.status(status).json({ message });
-    }
-  },
-
-  // ----------------------
-  // RESET PASSWORD
-  // ----------------------
-  resetPassword: async (req, res) => {
-    try {
-      const { token, newPassword } = req.body;
-      const data = await resetPasswordUC({ token, newPassword });
-
-      return res.status(200).json(data);
-    } catch (err) {
-      const { status, message } = mapError(err);
-      return res.status(status).json({ message });
-    }
-  },
-
-  // ----------------------
-  // GOOGLE REDIRECT
-  // ----------------------
+  // ======================================================
+  // 🔑 REDIRECT A GOOGLE (INICIO)
+  // ======================================================
   redirectToGoogle: (req, res) => {
     try {
       const url = getGoogleAuthUrl();
 
+      // Fuerza CORS en la redirección
       res.setHeader("Access-Control-Allow-Origin", process.env.FRONTEND_URL);
       res.setHeader("Access-Control-Allow-Credentials", "true");
 
       return res.status(302).setHeader("Location", url).send();
-    } catch (error) {
-      console.error("Error al generar URL de Google:", error);
+    } catch (err) {
+      console.error("Error al generar URL de Google:", err);
       res.status(500).json({ message: "Error al iniciar sesión con Google." });
     }
   },
 
-  // ----------------------
-  // GOOGLE CALLBACK
-  // ----------------------
+  // ======================================================
+  // 🔑 GOOGLE CALLBACK (FINAL)
+  // ======================================================
   handleGoogleCallback: async (req, res) => {
     try {
       const code = req.query.code;
@@ -282,45 +195,33 @@ const makeAuthController = ({
       const ctx = { ip: req.ip, ua: req.headers["user-agent"] };
       const result = await googleLoginUC({ code, ctx });
 
-      res.cookie("accessToken", result.accessToken, {
-        ...COOKIE_BASE_OPTIONS,
-        maxAge: 15 * 60 * 1000,
-      });
-
-      const REFRESH_TTL_MS = parseInt(
-        process.env.JWT_REFRESH_TTL_MS || "604800000",
-        10
-      );
-
-      res.cookie("refreshToken", result.refreshToken, {
-        ...COOKIE_BASE_OPTIONS,
-        maxAge: REFRESH_TTL_MS,
-      });
+      res.cookie("accessToken", result.accessToken, ACCESS_COOKIE_OPTIONS);
+      res.cookie("refreshToken", result.refreshToken, REFRESH_COOKIE_OPTIONS);
 
       const redirect = `${process.env.FRONTEND_URL}/auth/callback?isNewUser=${result.isNewUser}`;
       return res.redirect(redirect);
     } catch (err) {
-      const frontendErrorUrl = `${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(
-        "Fallo en la autenticación con Google."
-      )}`;
-      return res.redirect(frontendErrorUrl);
+      console.error("Error en handleGoogleCallback:", err);
+      const errorUrl = `${process.env.FRONTEND_URL}/login?error=OAuth`;
+      return res.redirect(errorUrl);
     }
   },
 
-  // ----------------------
-  // PROFILE
-  // ----------------------
+
+  // ======================================================
+  // 👤 GET PROFILE
+  // ======================================================
   getMyProfile: async (req, res) => {
     try {
       const userId = req.user.sub;
-      const profile = await getMyProfileUC(userId);
-
-      return res.status(200).json({ data: profile });
+      const data = await getMyProfileUC(userId);
+      return res.status(200).json({ data });
     } catch (err) {
       const { status, message } = mapError(err);
       return res.status(status).json({ message });
     }
   },
+
 });
 
 module.exports = { makeAuthController };
