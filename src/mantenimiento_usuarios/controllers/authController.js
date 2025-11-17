@@ -111,7 +111,11 @@ const makeAuthController = ({
       res.cookie("accessToken", accessToken, ACCESS_COOKIE_OPTIONS);
       res.cookie("refreshToken", refreshToken, REFRESH_COOKIE_OPTIONS);
 
-      return res.status(200).json({ message: "Login exitoso" });
+      // ✅ IMPORTANTE: También enviar accessToken en el response body para localStorage
+      return res.status(200).json({
+        message: "Login exitoso",
+        accessToken  // El frontend lo guardará en localStorage
+      });
     } catch (err) {
       const { status, message } = mapError(err);
       return res.status(status).json({ message });
