@@ -1,22 +1,25 @@
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
-// 🔑 CLAVE: Define la configuración segura para producción (HTTPS a HTTPS, Cross-Domain)
+/**
+ * 🔑 CONFIGURACIÓN DE COOKIES:
+ * - Local (HTTP ↔ HTTP):
+ *      secure = false
+ *      sameSite = "Lax"
+ * - Producción (HTTPS ↔ HTTPS):
+ *      secure = true
+ *      sameSite = "None"
+ */
 const COOKIE_BASE_OPTIONS = {
-    httpOnly: true,
-    // Debe ser TRUE en producción (Render) para que la cookie sea enviada por Vercel (HTTPS)
-    secure: IS_PRODUCTION, 
-    // 'None' es obligatorio para que la cookie viaje entre dominios (Vercel <-> Render)
-    sameSite: 'None', 
-    // NO INCLUIR 'domain'
+  httpOnly: true,
+  secure: IS_PRODUCTION,
+  sameSite: IS_PRODUCTION ? "None" : "Lax",
+  // ❗ No incluir "domain" para evitar romper las cookies cross-domain
 };
 
-
 function mapError(err) {
-  // Respeta el status si viene del use-case (e.status)
   let status = err.status || err.statusCode || 500;
   let message = err.message || "Error interno del servidor";
 
-  // Casos comunes de Sequelize
   if (err.name === "SequelizeUniqueConstraintError") {
     status = 409;
     message = "EMAIL_YA_REGISTRADO";
@@ -45,10 +48,12 @@ const makeAuthController = ({
   resetPasswordUC,
   googleLoginUC,
   getGoogleAuthUrl,
-  getMyProfileUC,  // 🔧 Agregado: use-case para obtener perfil del usuario
+  getMyProfileUC,
 }) => ({
 
-  // POST /api/auth/register (sin cambios)
+  // ----------------------
+  // REGISTER
+  // ----------------------
   registerPublic: async (req, res) => {
     try {
       const data = await registerPublicUC(req.body);
@@ -62,7 +67,9 @@ const makeAuthController = ({
     }
   },
 
-  // POST /api/auth/admin/users (sin cambios)
+  // ----------------------
+  // ADMIN CREATE
+  // ----------------------
   adminCreate: async (req, res) => {
     try {
       const userData = req.body;
@@ -79,89 +86,98 @@ const makeAuthController = ({
     }
   },
 
-// POST /api/auth/login
-login: async (req, res) => {
+  // ----------------------
+  // LOGIN
+  // ----------------------
+  login: async (req, res) => {
     try {
-      const ctx = { ip: req.ip, ua: req.headers['user-agent'] };
-      const { accessToken, refreshToken } = await loginUC({ email: req.body.email, password: req.body.password }, ctx);
-
-      // --- 🔑 USAMOS LA CONFIGURACIÓN FINAL DE PRODUCCIÓN ---
-      const accessCookieOptions = {
-        ...COOKIE_BASE_OPTIONS,
-        maxAge: 15 * 60 * 1000 // 15 minutos
-      };
-      res.cookie('accessToken', accessToken, accessCookieOptions);
-
-      const REFRESH_TTL_MS = parseInt(process.env.JWT_REFRESH_TTL_MS || '604800000', 10);
-      const refreshCookieOptions = {
-        ...COOKIE_BASE_OPTIONS,
-        maxAge: REFRESH_TTL_MS
-      };
-      res.cookie('refreshToken', refreshToken, refreshCookieOptions);
-      
-      // Enviamos una respuesta simple (¡SIN TOKENS EN EL JSON!)
-      return res.status(200).json({ message: 'Login exitoso' });
-
-    } catch (err) {
-      const { status, message } = mapError(err);
-      return res.status(status).json({ message });
-    }
-  },
-
-// POST /api/auth/refresh
-  refresh: async (req, res) => {
-    try {
-      const ctx = { ip: req.ip, ua: req.headers['user-agent'] };
-      const oldRefreshToken = req.cookies.refreshToken;
-
-      if (!oldRefreshToken) {
-        return res.status(401).json({ message: 'NO_REFRESH_TOKEN_COOKIE' });
-      }
-
-      const { accessToken: newAccessToken, refreshToken: newRefreshToken } = await refreshUC(
-        { refreshToken: oldRefreshToken },
+      const ctx = { ip: req.ip, ua: req.headers["user-agent"] };
+      const { accessToken, refreshToken } = await loginUC(
+        {
+          email: req.body.email,
+          password: req.body.password,
+        },
         ctx
       );
 
-      // 3. ESTABLECEMOS LAS NUEVAS COOKIES
-      const accessCookieOptions = {
+      res.cookie("accessToken", accessToken, {
         ...COOKIE_BASE_OPTIONS,
-        maxAge: 15 * 60 * 1000 // 15 minutos
-      };
-      res.cookie('accessToken', newAccessToken, accessCookieOptions); 
+        maxAge: 15 * 60 * 1000, // 15 min
+      });
 
-      const REFRESH_TTL_MS = parseInt(process.env.JWT_REFRESH_TTL_MS || '604800000', 10);
-      const refreshCookieOptions = {
+      const REFRESH_TTL_MS = parseInt(
+        process.env.JWT_REFRESH_TTL_MS || "604800000",
+        10
+      );
+
+      res.cookie("refreshToken", refreshToken, {
         ...COOKIE_BASE_OPTIONS,
-        maxAge: REFRESH_TTL_MS
-      };
-      res.cookie('refreshToken', newRefreshToken, refreshCookieOptions); 
-      
-      return res.status(200).json({ message: 'Token renovado' });
+        maxAge: REFRESH_TTL_MS,
+      });
 
+      return res.status(200).json({ message: "Login exitoso" });
     } catch (err) {
       const { status, message } = mapError(err);
       return res.status(status).json({ message });
     }
   },
 
-
-// POST /api/auth/logout
-  logout: async (req, res) => {
+  // ----------------------
+  // REFRESH TOKEN
+  // ----------------------
+  refresh: async (req, res) => {
     try {
-      const tokenDeLaCookie = req.cookies.refreshToken;
-      if (tokenDeLaCookie) {
-        await logoutUC({ refreshToken: tokenDeLaCookie });
+      const ctx = { ip: req.ip, ua: req.headers["user-agent"] };
+      const oldRefreshToken = req.cookies.refreshToken;
+
+      if (!oldRefreshToken) {
+        return res.status(401).json({ message: "NO_REFRESH_TOKEN_COOKIE" });
       }
 
-      // 3. LIMPIAMOS AMBAS COOKIES DEL NAVEGADOR
-      // 🔑 Usamos la base de opciones para el clearCookie
-      res.clearCookie('refreshToken', COOKIE_BASE_OPTIONS); 
-      res.clearCookie('accessToken', COOKIE_BASE_OPTIONS);
+      const {
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+      } = await refreshUC({ refreshToken: oldRefreshToken }, ctx);
+
+      res.cookie("accessToken", newAccessToken, {
+        ...COOKIE_BASE_OPTIONS,
+        maxAge: 15 * 60 * 1000,
+      });
+
+      const REFRESH_TTL_MS = parseInt(
+        process.env.JWT_REFRESH_TTL_MS || "604800000",
+        10
+      );
+
+      res.cookie("refreshToken", newRefreshToken, {
+        ...COOKIE_BASE_OPTIONS,
+        maxAge: REFRESH_TTL_MS,
+      });
+
+      return res.status(200).json({ message: "Token renovado" });
+    } catch (err) {
+      const { status, message } = mapError(err);
+      return res.status(status).json({ message });
+    }
+  },
+
+  // ----------------------
+  // LOGOUT
+  // ----------------------
+  logout: async (req, res) => {
+    try {
+      const refreshCookie = req.cookies.refreshToken;
+
+      if (refreshCookie) {
+        await logoutUC({ refreshToken: refreshCookie });
+      }
+
+      res.clearCookie("refreshToken", COOKIE_BASE_OPTIONS);
+      res.clearCookie("accessToken", COOKIE_BASE_OPTIONS);
 
       return res.status(200).json({
         message: "Sesión cerrada correctamente",
-        data: { ok: true }
+        data: { ok: true },
       });
     } catch (err) {
       const { status, message } = mapError(err);
@@ -169,7 +185,9 @@ login: async (req, res) => {
     }
   },
 
-  // PUT /api/auth/password (sin cambios)
+  // ----------------------
+  // CHANGE PASSWORD
+  // ----------------------
   changePassword: async (req, res) => {
     try {
       const userId = req.user.sub;
@@ -189,12 +207,14 @@ login: async (req, res) => {
     }
   },
 
-  // POST /api/auth/forgot-password (sin cambios)
+  // ----------------------
+  // FORGOT PASSWORD
+  // ----------------------
   forgotPassword: async (req, res) => {
     try {
       const { email } = req.body;
-
       const data = await forgotPasswordUC({ email });
+
       return res.status(200).json(data);
     } catch (err) {
       const { status, message } = mapError(err);
@@ -202,11 +222,13 @@ login: async (req, res) => {
     }
   },
 
-  // DELETE /api/auth/admin/users/:id (sin cambios)
+  // ----------------------
+  // DELETE USER
+  // ----------------------
   deleteUser: async (req, res) => {
     try {
       const userIdToDelete = req.params.id;
-      const adminId = req.user.sub; 
+      const adminId = req.user.sub;
 
       const data = await deleteUserUC({ userIdToDelete, adminId });
 
@@ -216,12 +238,15 @@ login: async (req, res) => {
       return res.status(status).json({ message });
     }
   },
-  
-    // POST /api/auth/reset-password (sin cambios)
+
+  // ----------------------
+  // RESET PASSWORD
+  // ----------------------
   resetPassword: async (req, res) => {
     try {
       const { token, newPassword } = req.body;
       const data = await resetPasswordUC({ token, newPassword });
+
       return res.status(200).json(data);
     } catch (err) {
       const { status, message } = mapError(err);
@@ -229,82 +254,73 @@ login: async (req, res) => {
     }
   },
 
-  // GET /api/auth/google
-redirectToGoogle: (req, res) => {
+  // ----------------------
+  // GOOGLE REDIRECT
+  // ----------------------
+  redirectToGoogle: (req, res) => {
     try {
-      const url = getGoogleAuthUrl(); // Obtiene la URL de Google
+      const url = getGoogleAuthUrl();
 
-      // 🔑 CORRECCIÓN CLAVE: Responde manualmente con 302 y fuerza los headers CORS
-      // Usamos el mismo patrón para el redirect de Google
-      res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL);
-      res.setHeader('Access-Control-Allow-Credentials', 'true');
-      
-      // Responde con status 302, establece el header 'Location' y termina la respuesta.
-      return res.status(302).setHeader('Location', url).send(); 
-      
+      res.setHeader("Access-Control-Allow-Origin", process.env.FRONTEND_URL);
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+
+      return res.status(302).setHeader("Location", url).send();
     } catch (error) {
-        console.error("Error al generar URL de Google:", error);
-        res.status(500).json({ message: 'Error al iniciar sesión con Google.' });
-    }
-},
-
-  // GET /api/auth/google/callback
-  handleGoogleCallback: async (req, res) => {
-    try {
-      
-      const code = req.query.code;
-      if (!code) {
-        throw new Error('No se recibió el código de Google.');
-      }
-
-      // Pasamos el código y el contexto (IP, User-Agent) al caso de uso principal
-      const ctx = { ip: req.ip, ua: req.headers['user-agent'] };
-      const result = await googleLoginUC({ code, ctx }); // Llama a la lógica principal
-
-      // 4. ESTABLECER COOKIES (USANDO LA CONFIGURACIÓN FINAL)
-      const accessCookieOptions = {
-        ...COOKIE_BASE_OPTIONS,
-        maxAge: 15 * 60 * 1000 // 15 minutos
-      };
-      res.cookie('accessToken', result.accessToken, accessCookieOptions);
-
-      const REFRESH_TTL_MS = parseInt(process.env.JWT_REFRESH_TTL_MS || '604800000', 10);
-      const refreshCookieOptions = {
-        ...COOKIE_BASE_OPTIONS,
-        maxAge: REFRESH_TTL_MS
-      };
-      res.cookie('refreshToken', result.refreshToken, refreshCookieOptions);
-
-      // Redirigimos al frontend sin tokens; incluimos sólo un flag no sensible
-      // (isNewUser) si el frontend lo necesita para UX.
-      const frontendRedirectUrl = `${process.env.FRONTEND_URL}/auth/callback?isNewUser=${result.isNewUser}`;
-      // Nota: el frontend debe hacer peticiones con `credentials: 'include'`
-      // para que las cookies httpOnly sean enviadas al backend.
-      res.redirect(frontendRedirectUrl);
-
-    } catch (err) {
-      // Si algo falla, redirigimos al usuario a la página de login del frontend con un mensaje de error.
-      const { status, message } = mapError(err);
-      console.error("Error en handleGoogleCallback:", message); 
-      // Mensaje genérico para el usuario en la URL
-      const frontendErrorUrl = `${process.env.FRONTEND_URL}/login?error=${encodeURIComponent('Fallo en la autenticación con Google.')}`;
-      res.redirect(frontendErrorUrl);
+      console.error("Error al generar URL de Google:", error);
+      res.status(500).json({ message: "Error al iniciar sesión con Google." });
     }
   },
-  
-  // GET /api/auth/me
+
+  // ----------------------
+  // GOOGLE CALLBACK
+  // ----------------------
+  handleGoogleCallback: async (req, res) => {
+    try {
+      const code = req.query.code;
+      if (!code) throw new Error("No se recibió el código de Google.");
+
+      const ctx = { ip: req.ip, ua: req.headers["user-agent"] };
+      const result = await googleLoginUC({ code, ctx });
+
+      res.cookie("accessToken", result.accessToken, {
+        ...COOKIE_BASE_OPTIONS,
+        maxAge: 15 * 60 * 1000,
+      });
+
+      const REFRESH_TTL_MS = parseInt(
+        process.env.JWT_REFRESH_TTL_MS || "604800000",
+        10
+      );
+
+      res.cookie("refreshToken", result.refreshToken, {
+        ...COOKIE_BASE_OPTIONS,
+        maxAge: REFRESH_TTL_MS,
+      });
+
+      const redirect = `${process.env.FRONTEND_URL}/auth/callback?isNewUser=${result.isNewUser}`;
+      return res.redirect(redirect);
+    } catch (err) {
+      const frontendErrorUrl = `${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(
+        "Fallo en la autenticación con Google."
+      )}`;
+      return res.redirect(frontendErrorUrl);
+    }
+  },
+
+  // ----------------------
+  // PROFILE
+  // ----------------------
   getMyProfile: async (req, res) => {
     try {
       const userId = req.user.sub;
-      const userProfile = await getMyProfileUC(userId);  // 🔧 FIX: Pasar userId directamente, no como objeto
-      return res.status(200).json({ data: userProfile });
+      const profile = await getMyProfileUC(userId);
+
+      return res.status(200).json({ data: profile });
     } catch (err) {
-      console.error('Error en getMyProfile:', err);  // 🔧 Log para debugging
       const { status, message } = mapError(err);
       return res.status(status).json({ message });
     }
   },
-
 });
 
 module.exports = { makeAuthController };
