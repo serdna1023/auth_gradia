@@ -1,5 +1,3 @@
-// src/mantenimiento_usuarios/controllers/authController.js
-
 function mapError(err) {
   let status = err.status || err.statusCode || 500;
   let message = err.message || "Error interno del servidor";
@@ -18,35 +16,26 @@ function mapError(err) {
   return { status, message };
 }
 
-
-
 // ======================================================
-// 🌍 CONFIGURACIÓN AUTOMÁTICA DE COOKIES (LOCAL / PROD)
+//  CONFIGURACIÓN AUTOMÁTICA DE COOKIES (LOCAL / PROD)
 // ======================================================
-
-// Detecta si estamos en local
 const isLocalhost = process.env.NODE_ENV !== 'production';
 
-// Opciones base dinámicas
 const COOKIE_BASE_OPTIONS = {
   httpOnly: true,
-  secure: !isLocalhost,               // ❗ producción = HTTPS obligatorio
-  sameSite: isLocalhost ? 'Lax' : 'None', // ❗ OAuth necesita None en producción
+  secure: !isLocalhost,
+  sameSite: isLocalhost ? 'Lax' : 'None',
 };
 
-// Access token: corta vida
 const ACCESS_COOKIE_OPTIONS = {
   ...COOKIE_BASE_OPTIONS,
   maxAge: 15 * 60 * 1000, // 15 min
 };
 
-// Refresh token: larga vida
 const REFRESH_COOKIE_OPTIONS = {
   ...COOKIE_BASE_OPTIONS,
   maxAge: parseInt(process.env.JWT_REFRESH_TTL_MS || '604800000', 10),
 };
-
-
 
 const makeAuthController = ({
   registerPublicUC,
@@ -64,7 +53,7 @@ const makeAuthController = ({
 }) => ({
 
   // ======================================================
-  // 🔐 REGISTER (PUBLIC)
+  //  REGISTER (PUBLIC)
   // ======================================================
   registerPublic: async (req, res) => {
     try {
@@ -80,7 +69,7 @@ const makeAuthController = ({
   },
 
   // ======================================================
-  // 🔐 ADMIN CREATE USER
+  //  ADMIN CREATE USER
   // ======================================================
   adminCreate: async (req, res) => {
     try {
@@ -98,7 +87,7 @@ const makeAuthController = ({
   },
 
   // ======================================================
-  // 🔐 LOGIN
+  //  LOGIN
   // ======================================================
   login: async (req, res) => {
     try {
@@ -119,7 +108,7 @@ const makeAuthController = ({
   },
 
   // ======================================================
-  // 🔄 REFRESH TOKENS
+  //  REFRESH TOKENS
   // ======================================================
   refresh: async (req, res) => {
     try {
@@ -145,7 +134,7 @@ const makeAuthController = ({
   },
 
   // ======================================================
-  // 🚪 LOGOUT
+  //  LOGOUT
   // ======================================================
   logout: async (req, res) => {
     try {
@@ -165,18 +154,79 @@ const makeAuthController = ({
     }
   },
 
+  // ======================================================
+  //  FORGOT PASSWORD (¡EL QUE FALTABA!)
+  // ======================================================
+  forgotPassword: async (req, res) => {
+    try {
+      const { email } = req.body;
+      const data = await forgotPasswordUC({ email });
+      return res.status(200).json(data);
+    } catch (err) {
+      const { status, message } = mapError(err);
+      return res.status(status).json({ message });
+    }
+  },
 
   // ======================================================
-  // 🔑 REDIRECT A GOOGLE (INICIO)
+  //  RESET PASSWORD (¡TAMBIÉN FALTABA!)
+  // ======================================================
+  resetPassword: async (req, res) => {
+    try {
+      const { token, newPassword } = req.body;
+      const data = await resetPasswordUC({ token, newPassword });
+      return res.status(200).json(data);
+    } catch (err) {
+      const { status, message } = mapError(err);
+      return res.status(status).json({ message });
+    }
+  },
+
+  // ======================================================
+  //  CHANGE PASSWORD (¡TAMBIÉN FALTABA!)
+  // ======================================================
+  changePassword: async (req, res) => {
+    try {
+      const userId = req.user.sub; // Viene del token
+      const { oldPassword, newPassword } = req.body;
+
+      const data = await changePasswordUC({
+        userId,
+        oldPassword,
+        newPassword,
+        updatedById: userId,
+      });
+
+      return res.status(200).json(data);
+    } catch (err) {
+      const { status, message } = mapError(err);
+      return res.status(status).json({ message });
+    }
+  },
+
+  // ======================================================
+  //  DELETE USER (¡TAMBIÉN FALTABA!)
+  // ======================================================
+  deleteUser: async (req, res) => {
+    try {
+      const userIdToDelete = req.params.id;
+      const adminId = req.user.sub;
+      const data = await deleteUserUC({ userIdToDelete, adminId });
+      return res.status(200).json(data);
+    } catch (err) {
+      const { status, message } = mapError(err);
+      return res.status(status).json({ message });
+    }
+  },
+
+  // ======================================================
+  //  REDIRECT A GOOGLE
   // ======================================================
   redirectToGoogle: (req, res) => {
     try {
       const url = getGoogleAuthUrl();
-
-      // Fuerza CORS en la redirección
       res.setHeader("Access-Control-Allow-Origin", process.env.FRONTEND_URL);
       res.setHeader("Access-Control-Allow-Credentials", "true");
-
       return res.status(302).setHeader("Location", url).send();
     } catch (err) {
       console.error("Error al generar URL de Google:", err);
@@ -185,7 +235,7 @@ const makeAuthController = ({
   },
 
   // ======================================================
-  // 🔑 GOOGLE CALLBACK (FINAL)
+  //  GOOGLE CALLBACK
   // ======================================================
   handleGoogleCallback: async (req, res) => {
     try {
@@ -207,9 +257,8 @@ const makeAuthController = ({
     }
   },
 
-
   // ======================================================
-  // 👤 GET PROFILE
+  //  GET PROFILE
   // ======================================================
   getMyProfile: async (req, res) => {
     try {
@@ -221,7 +270,6 @@ const makeAuthController = ({
       return res.status(status).json({ message });
     }
   },
-
 });
 
 module.exports = { makeAuthController };
