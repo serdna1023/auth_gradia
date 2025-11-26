@@ -11,20 +11,26 @@ function createApp({ repos }) {
   const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
   // -----------------------------
-  // 🔥 CORS FINAL (LOCAL + PROD)
+  // 🔥 CORS MEJORADO (VERCEL + LOCAL)
   // -----------------------------
-  const ALLOWED_ORIGINS = [
-    process.env.FRONTEND_URL,   // Producción (Vercel)
-    "http://localhost:3000",    // Dev local
-    "http://127.0.0.1:3000",    // Alternativa local
-  ];
-
   const corsOptions = {
     origin: (origin, callback) => {
       // Permitir herramientas como Postman (que no envían Origin)
       if (!origin) return callback(null, true);
 
-      if (ALLOWED_ORIGINS.includes(origin)) {
+      // Lista de orígenes locales permitidos
+      const allowedOrigins = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+      ];
+
+      // ✅ Permitir TODOS los dominios de Vercel
+      const isVercel = origin.endsWith('.vercel.app');
+
+      // Permitir el dominio de producción específico (si está configurado)
+      const isProduction = origin === process.env.FRONTEND_URL;
+
+      if (allowedOrigins.includes(origin) || isVercel || isProduction) {
         return callback(null, true);
       }
 
@@ -33,6 +39,8 @@ function createApp({ repos }) {
     },
 
     credentials: true, // 🔥 Necesario para enviar cookies httpOnly
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   };
 
   // Middlewares
